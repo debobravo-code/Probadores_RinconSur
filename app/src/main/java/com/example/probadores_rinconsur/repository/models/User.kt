@@ -12,7 +12,7 @@ import androidx.room.PrimaryKey
             entity = TipoUsuario::class,
             parentColumns = ["id"],
             childColumns = ["tipoUsuarioId"],
-            onDelete = ForeignKey.RESTRICT,
+            onDelete = ForeignKey.RESTRICT, // no se puede borrar un tipo en uso
             onUpdate = ForeignKey.CASCADE
         )
     ],
@@ -23,8 +23,12 @@ import androidx.room.PrimaryKey
 )
 data class User(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val nombre: String,
+    val name: String,
     val email: String,
-    val password: String,
-    val tipoUsuarioId: Int
+    val password: String,                // Solo para fines académicos (sin hash)
+    val profileImageUri: String? = null, // Ruta local de la foto de perfil
+    val tipoUsuarioId: Int               // FK -> tipo_usuarios.id
 )
+
+/** Solo el tipo Administrador ve Usuarios, Tipos de usuario y Sedes, y puede crear/editar probadores. */
+fun User.esAdministrador(): Boolean = tipoUsuarioId == TipoUsuario.ID_ADMINISTRADOR
