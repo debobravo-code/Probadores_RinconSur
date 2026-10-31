@@ -9,15 +9,10 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface RegistroDao {
 
-    @Query("SELECT * FROM registros ORDER BY finMillis DESC")
-    fun getAllRegistros(): Flow<List<RegistroOcupacion>>
-
-    @Query("SELECT * FROM registros WHERE sedeId = :sedeId ORDER BY finMillis DESC")
-    fun getRegistrosBySede(sedeId: Int): Flow<List<RegistroOcupacion>>
+    // Historial: los usos más recientes primero
+    @Query("SELECT * FROM registros ORDER BY inicioMillis DESC")
+    fun getAll(): Flow<List<RegistroOcupacion>>
 
     @Insert
-    suspend fun insertRegistro(registro: RegistroOcupacion): Long
-
-    @Query("DELETE FROM registros")
-    suspend fun deleteAll()
+    suspend fun insert(registro: RegistroOcupacion): Long
 }
