@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Delete
@@ -34,11 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
 import com.example.probadores_rinconsur.repository.models.User
 import com.example.probadores_rinconsur.viewmodels.TipoUsuarioViewModel
 import com.example.probadores_rinconsur.viewmodels.UserViewModel
@@ -54,39 +50,41 @@ fun UserListScreen(
     val users by viewModel.users.collectAsStateWithLifecycle()
     val tipos by tipoUsuarioViewModel.tipos.collectAsStateWithLifecycle()
     val nombreTipo = tipos.associate { it.id to it.tipoUsuario }
+
     var toDelete by remember { mutableStateOf<User?>(null) }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
         LazyColumn(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(users, key = { it.id }) { user ->
-                Card(modifier = Modifier.fillMaxWidth()) {
+            items(
+                users,
+                key = { it.id }
+            ) { user ->
+
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (user.profileImageUri != null) {
-                            AsyncImage(
-                                model = user.profileImageUri,
-                                contentDescription = user.name,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Default.AccountCircle,
-                                contentDescription = null,
-                                modifier = Modifier.size(52.dp)
-                            )
-                        }
+                        Icon(
+                            Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(52.dp)
+                        )
 
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(
+                            Modifier.width(12.dp)
+                        )
 
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
                             Text(
                                 user.name,
                                 style = MaterialTheme.typography.titleMedium
@@ -105,7 +103,9 @@ fun UserListScreen(
                         }
 
                         IconButton(
-                            onClick = { onEdit(user.id) }
+                            onClick = {
+                                onEdit(user.id)
+                            }
                         ) {
                             Icon(
                                 Icons.Default.Edit,
@@ -115,7 +115,9 @@ fun UserListScreen(
 
                         // No se permite eliminar al usuario con sesión activa
                         IconButton(
-                            onClick = { toDelete = user },
+                            onClick = {
+                                toDelete = user
+                            },
                             enabled = user.id != currentUserId
                         ) {
                             Icon(
