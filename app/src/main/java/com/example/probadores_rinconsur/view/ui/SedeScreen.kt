@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,53 +38,106 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.viewmodels.SedeViewModel
+import kotlinx.coroutines.launch
 
-/** CRUD de sedes en una sola pantalla (formulario arriba, lista abajo). */
 @Composable
-fun SedeScreen(viewModel: SedeViewModel) {
+fun SedeScreen(
+    viewModel: SedeViewModel
+) {
+
     val sedes by viewModel.sedes.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
-    var editId by rememberSaveable { mutableIntStateOf(0) }
-    var nombre by rememberSaveable { mutableStateOf("") }
-    var alerta by rememberSaveable { mutableStateOf("15") }
-    var toDelete by remember { mutableStateOf<Sede?>(null) }
 
-    DisposableEffect(Unit) { onDispose { viewModel.clearMessage() } }
+    val scope = rememberCoroutineScope()
+
+    var editId by rememberSaveable {
+        mutableIntStateOf(0)
+    }
+
+    var nombre by rememberSaveable {
+        mutableStateOf("")
+    }
+
+    var alerta by rememberSaveable {
+        mutableStateOf("15")
+    }
+
+    var cantidadProbadores by rememberSaveable {
+        mutableStateOf("6")
+    }
+
+    var toDelete by remember {
+        mutableStateOf<Sede?>(null)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearMessage()
+        }
+    }
 
     fun limpiar() {
         editId = 0
         nombre = ""
         alerta = "15"
+        cantidadProbadores = "6"
+        viewModel.clearMessage()
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+
         Text(
-            if (editId > 0) "Editar sede" else "Nueva sede",
+            text = if (editId > 0) {
+                "Editar sede"
+            } else {
+                "Nueva sede"
+            },
             style = MaterialTheme.typography.titleLarge
         )
 
+        // NOMBRE DE LA SEDE
         OutlinedTextField(
             value = nombre,
             onValueChange = {
-                if (it.length <= Sede.MAX_LARGO) nombre = it
+                if (it.length <= Sede.MAX_LARGO) {
+                    nombre = it
+                }
+
                 viewModel.clearMessage()
             },
-            label = { Text("Nombre de la sede") },
-            supportingText = { Text("${nombre.length}/${Sede.MAX_LARGO}") },
+            label = {
+                Text("Nombre de la sede")
+            },
+            supportingText = {
+                Text("${nombre.length}/${Sede.MAX_LARGO}")
+            },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
 
+        // TIEMPO DE ALERTA
         OutlinedTextField(
             value = alerta,
             onValueChange = {
-                if (it.length <= 2) alerta = it
+                if (
+                    it.length <= 2 &&
+                    it.all { caracter ->
+                        caracter.isDigit()
+                    }
+                ) {
+                    alerta = it
+                }
+
                 viewModel.clearMessage()
             },
-            label = { Text("Tiempo de alerta (minutos)") },
+            label = {
+                Text("Tiempo de alerta (minutos)")
+            },
             supportingText = {
                 Text(
                     "Entre ${Sede.ALERTA_MIN} y ${Sede.ALERTA_MAX}. " +
@@ -97,9 +151,43 @@ fun SedeScreen(viewModel: SedeViewModel) {
             modifier = Modifier.fillMaxWidth()
         )
 
+        // CANTIDAD DE PROBADORES
+        // Se muestra tanto al CREAR como al EDITAR.
+        OutlinedTextField(
+            value = cantidadProbadores,
+            onValueChange = {
+                if (
+                    it.length <= 2 &&
+                    it.all { caracter ->
+                        caracter.isDigit()
+                    }
+                ) {
+                    cantidadProbadores = it
+                }
+
+                viewModel.clearMessage()
+            },
+            label = {
+                Text("Cantidad de probadores")
+            },
+            supportingText = {
+                if (editId > 0) {
+                    Text("Puede aumentar la cantidad de probadores.")
+                } else {
+                    Text("Indique cuántos probadores tiene esta sede.")
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // MENSAJES
         message?.let {
             Text(
-                it,
+                text = it,
                 color = MaterialTheme.colorScheme.error
             )
         }
@@ -107,34 +195,54 @@ fun SedeScreen(viewModel: SedeViewModel) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+
             Button(
                 onClick = {
-                    viewModel.save(editId, nombre, alerta) {
-                        limpiar()
-                    }
+                    viewModel.save(
+                        id = editId,
+                        nombre = nombre,
+                        tiempoAlerta = alerta,
+                        cantidadProbadores = cantidadProbadores,
+                        onSuccess = {
+                            limpiar()
+                        }
+                    )
                 }
             ) {
                 Text(
-                    if (editId > 0) "Actualizar" else "Agregar"
+                    if (editId > 0) {
+                        "Actualizar"
+                    } else {
+                        "Agregar"
+                    }
                 )
             }
 
             if (editId > 0) {
                 OutlinedButton(
-                    onClick = { limpiar() }
+                    onClick = {
+                        limpiar()
+                    }
                 ) {
                     Text("Cancelar")
                 }
             }
         }
 
+        // LISTADO DE SEDES
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(sedes, key = { it.id }) { sede ->
+
+            items(
+                sedes,
+                key = { it.id }
+            ) { sede ->
+
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
+
                     Row(
                         modifier = Modifier.padding(
                             horizontal = 16.dp,
@@ -142,10 +250,14 @@ fun SedeScreen(viewModel: SedeViewModel) {
                         ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         Column(
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("${sede.id}. ${sede.nombre}")
+
+                            Text(
+                                "${sede.id}. ${sede.nombre}"
+                            )
 
                             Text(
                                 "Alerta: ${sede.tiempoAlerta} min",
@@ -153,22 +265,42 @@ fun SedeScreen(viewModel: SedeViewModel) {
                             )
                         }
 
+                        // EDITAR
                         IconButton(
                             onClick = {
+
+                                viewModel.clearMessage()
+
                                 editId = sede.id
                                 nombre = sede.nombre
                                 alerta = sede.tiempoAlerta.toString()
+
+                                scope.launch {
+
+                                    val cantidad =
+                                        viewModel.getCantidadProbadores(
+                                            sede.id
+                                        )
+
+                                    cantidadProbadores =
+                                        cantidad.toString()
+                                }
                             }
                         ) {
+
                             Icon(
                                 Icons.Default.Edit,
                                 contentDescription = "Editar"
                             )
                         }
 
+                        // ELIMINAR
                         IconButton(
-                            onClick = { toDelete = sede }
+                            onClick = {
+                                toDelete = sede
+                            }
                         ) {
+
                             Icon(
                                 Icons.Default.Delete,
                                 contentDescription = "Eliminar"
@@ -180,7 +312,9 @@ fun SedeScreen(viewModel: SedeViewModel) {
         }
     }
 
+    // CONFIRMACIÓN PARA ELIMINAR
     toDelete?.let { sede ->
+
         AlertDialog(
             onDismissRequest = {
                 toDelete = null
@@ -189,9 +323,12 @@ fun SedeScreen(viewModel: SedeViewModel) {
                 Text("Eliminar sede")
             },
             text = {
-                Text("¿Eliminar \"${sede.nombre}\"?")
+                Text(
+                    "¿Eliminar \"${sede.nombre}\"?"
+                )
             },
             confirmButton = {
+
                 TextButton(
                     onClick = {
                         viewModel.delete(sede)
@@ -202,6 +339,7 @@ fun SedeScreen(viewModel: SedeViewModel) {
                 }
             },
             dismissButton = {
+
                 TextButton(
                     onClick = {
                         toDelete = null

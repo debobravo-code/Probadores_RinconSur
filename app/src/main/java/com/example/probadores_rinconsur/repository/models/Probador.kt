@@ -5,7 +5,11 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/** Estados oficiales. "Con alerta" NO es un estado: es un OCUPADO que pasó el tiempo de alerta de la sede. */
+/**
+ * Estados oficiales.
+ * "Con alerta" NO es un estado:
+ * es un OCUPADO que pasó el tiempo de alerta de la sede.
+ */
 enum class EstadoProbador(val etiqueta: String) {
     LIBRE("Libre"),
     OCUPADO("Ocupado"),
@@ -24,7 +28,12 @@ enum class EstadoProbador(val etiqueta: String) {
             onUpdate = ForeignKey.CASCADE
         )
     ],
-    indices = [Index(value = ["sedeId", "numero"], unique = true)]
+    indices = [
+        Index(
+            value = ["sedeId", "numero"],
+            unique = true
+        )
+    ]
 )
 data class Probador(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
