@@ -1,4 +1,6 @@
 # 📱 robadores RinconSur
+# integrantes: Debora Bravo  
+# Mikela Plama
 
 ## Descripción del proyecto
 
