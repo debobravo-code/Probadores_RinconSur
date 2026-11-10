@@ -1,3 +1,4 @@
+
 package com.example.probadores_rinconsur.repository.data
 
 import android.content.Context
@@ -6,6 +7,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.probadores_rinconsur.repository.models.EstadoProbador
 import com.example.probadores_rinconsur.repository.models.Probador
@@ -16,7 +18,10 @@ import com.example.probadores_rinconsur.repository.models.TipoUsuario
 import com.example.probadores_rinconsur.repository.models.User
 import com.example.probadores_rinconsur.repository.models.UsuarioSede
 
-/** Le enseña a Room a guardar el enum EstadoProbador como texto. */
+/**
+ * Convierte el enum EstadoProbador a texto
+ * para que Room pueda almacenarlo.
+ */
 class Converters {
 
     @TypeConverter
@@ -37,7 +42,7 @@ class Converters {
         ReportePrenda::class,
         UsuarioSede::class
     ],
-    version = 4, // v4: relación entre usuarios y sedes asignadas
+    version = 5, // v5: observaciones en el historial
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -53,18 +58,33 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
 
+        // Migración de la versión 4 a la versión 5.
+        // Agrega observaciones sin borrar los datos anteriores.
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+
+            override fun migrate(db: SupportSQLiteDatabase) {
+
+                db.execSQL(
+                    "ALTER TABLE registros " +
+                            "ADD COLUMN observacion TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
         fun getDatabase(context: Context): AppDatabase {
+
             return INSTANCE ?: synchronized(this) {
+
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "rinconsur_database"
                 )
-                    // Proyecto académico: al cambiar la versión se recrea la BD
-                    .fallbackToDestructiveMigration()
+                    // Migración segura: conserva los datos
+                    .addMigrations(MIGRATION_4_5)
                     .addCallback(seedCallback)
                     .build()
 
@@ -75,18 +95,17 @@ abstract class AppDatabase : RoomDatabase() {
 
         private val seedCallback = object : Callback() {
 
-            // Se ejecuta UNA vez, cuando se crea la BD:
-            // sedes, probadores y datos de ejemplo.
+            // Se ejecuta cuando se crea la base de datos.
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
                 sembrarSedesYProbadores(db)
             }
 
-            // Se ejecuta en cada apertura con INSERT OR IGNORE:
-            // los tipos de usuario y las cuentas iniciales siempre existen.
+            // Se ejecuta cada vez que se abre la base de datos.
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)
 
+                // Crear tipos de usuario si no existen
                 db.execSQL(
                     "INSERT OR IGNORE INTO tipo_usuarios " +
                             "(id, tipo_usuario) VALUES " +
@@ -94,6 +113,7 @@ abstract class AppDatabase : RoomDatabase() {
                             "(2, 'Personal')"
                 )
 
+                // Crear usuarios iniciales si no existen
                 db.execSQL(
                     "INSERT OR IGNORE INTO users " +
                             "(name, email, password, tipoUsuarioId) VALUES " +
@@ -103,13 +123,18 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        /** Datos FICTICIOS: 3 sedes de 6 probadores. */
+        /**
+         * Datos ficticios para probar la aplicación.
+         * 3 sedes con 6 probadores cada una.
+         */
         private fun sembrarSedesYProbadores(
             db: SupportSQLiteDatabase
         ) {
+
             val ahora = System.currentTimeMillis()
             val min = 60_000L
 
+            // Crear las tres sedes
             db.execSQL(
                 "INSERT INTO sedes (id, nombre, tiempoAlerta) VALUES " +
                         "(1, 'Santiago Norte', 15), " +
@@ -117,20 +142,26 @@ abstract class AppDatabase : RoomDatabase() {
                         "(3, 'Santiago Oriente', 15)"
             )
 
+            // Crear los probadores de cada sede
             val filas = (1..3).flatMap { sede ->
+
                 (1..6).map { n ->
 
                     val id = (sede - 1) * 6 + n
 
                     val (estado, inicio, prendas) =
                         if (sede != 1) {
+
                             Triple(
                                 "LIBRE",
                                 "NULL",
                                 0
                             )
+
                         } else {
+
                             when (n) {
+
                                 2 -> Triple(
                                     "OCUPADO",
                                     "${ahora - 8 * min}",
@@ -174,6 +205,7 @@ abstract class AppDatabase : RoomDatabase() {
                         filas.joinToString(", ")
             )
 
+            // Crear registros ficticios del historial
             val usos = listOf(
                 listOf(1, 1, 300, 17, 0, 3),
                 listOf(1, 2, 240, 18, 0, 2),
@@ -201,6 +233,7 @@ abstract class AppDatabase : RoomDatabase() {
                         "VALUES $usos"
             )
 
+            // Crear reporte ficticio de prenda olvidada
             db.execSQL(
                 "INSERT INTO reportes_prenda " +
                         "(probadorId, descripcion, fotoUri, fechaMillis) " +
