@@ -1,3 +1,4 @@
+
 package com.example.probadores_rinconsur.repository.data
 
 import androidx.room.Dao
@@ -8,10 +9,23 @@ import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.repository.models.UsuarioSede
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Gestiona las sedes asignadas a cada usuario.
+ *
+ * El administrador puede asignar o quitar sedes.
+ * El personal solo debe acceder a las sedes
+ * que tiene asignadas.
+ */
 @Dao
 interface UsuarioSedeDao {
 
-    // Obtiene las sedes asignadas a un usuario
+    /**
+     * Obtiene únicamente las sedes asignadas
+     * al usuario indicado.
+     *
+     * Se utiliza para mostrar las sedes
+     * autorizadas al trabajador.
+     */
     @Query(
         """
         SELECT sedes.*
@@ -26,7 +40,12 @@ interface UsuarioSedeDao {
         usuarioId: Int
     ): Flow<List<Sede>>
 
-    // Obtiene las asignaciones actuales del usuario
+    /**
+     * Obtiene las asignaciones actuales.
+     *
+     * Permite conocer qué sedes tiene
+     * asignadas un trabajador.
+     */
     @Query(
         "SELECT * FROM usuario_sede WHERE usuarioId = :usuarioId"
     )
@@ -34,13 +53,24 @@ interface UsuarioSedeDao {
         usuarioId: Int
     ): List<UsuarioSede>
 
-    // Asigna una sede al usuario
+    /**
+     * Asigna una sede a un usuario.
+     *
+     * IGNORE evita duplicar una asignación
+     * que ya existe.
+     */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(
         asignacion: UsuarioSede
     )
 
-    // Elimina todas las sedes asignadas a un usuario
+    /**
+     * Elimina todas las asignaciones
+     * de sedes de un usuario.
+     *
+     * Se utiliza al actualizar las sedes
+     * autorizadas por el administrador.
+     */
     @Query(
         "DELETE FROM usuario_sede WHERE usuarioId = :usuarioId"
     )
