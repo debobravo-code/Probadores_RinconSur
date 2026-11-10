@@ -12,22 +12,20 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
+import kotlinx.coroutines.flow.first
 /**
- * ViewModel del historial de ocupación.
+ * Gestiona el historial y los permisos por sede.
  *
- * Administrador:
- * - Puede consultar todas las sedes.
- * - Puede editar registros de todas las sedes.
- *
- * Personal:
- * - Solo puede consultar las sedes asignadas.
- * - Solo puede editar registros de esas sedes.
+ * Administrador: todas las sedes.
+ * Personal: solamente sus sedes asignadas.
  */
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class HistorialViewModel(
     application: Application
 ) : AndroidViewModel(application) {
@@ -37,8 +35,28 @@ class HistorialViewModel(
     private val registroDao = db.registroDao()
     private val usuarioSedeDao = db.usuarioSedeDao()
 
-    // Todos los registros almacenados en Room.
-    // Se conservan para compatibilidad con la pantalla.
+    /**
+     * Información del usuario conectado.
+     */
+    private data class Sesion(
+        val usuarioId: Int?,
+        val esAdmin: Boolean
+    )
+
+    private val sesion = MutableStateFlow(
+        Sesion(
+            usuarioId = null,
+            esAdmin = false
+        )
+    )
+
+    /**
+     * Listas generales de Room.
+     *
+     * Se conservan para compatibilidad.
+     * Las pantallas deben utilizar las
+     * listas filtradas por permisos.
+     */
     val registros: StateFlow<List<RegistroOcupacion>> =
         registroDao.getAll()
             .stateIn(
@@ -47,7 +65,6 @@ class HistorialViewModel(
                 emptyList()
             )
 
-    // Todas las sedes registradas.
     val sedes: StateFlow<List<Sede>> =
         db.sedeDao().getAll()
             .stateIn(
@@ -56,148 +73,171 @@ class HistorialViewModel(
                 emptyList()
             )
 
-    // Identificación del usuario conectado
-    private val _usuarioActualId = MutableStateFlow<Int?>(null)
+    /**
+     * Obtiene las sedes autorizadas
+     * según el usuario y su rol.
+     */
+    private val sedesAutorizadas =
+        sesion.flatMapLatest { usuario ->
 
-    private val _esAdministrador = MutableStateFlow(false)
+            when {
 
-    // Sedes autorizadas para el usuario actual
-    private val _sedesPermitidas = MutableStateFlow<List<Sede>>(emptyList())
+                usuario.usuarioId == null -> {
+                    flowOf(emptyList())
+                }
 
-    val sedesPermitidas: StateFlow<List<Sede>> =
-        _sedesPermitidas.asStateFlow()
+                usuario.esAdmin -> {
+                    db.sedeDao().getAll()
+                }
 
-    // Registros visibles para el usuario actual
-    private val _registrosPermitidos =
-        MutableStateFlow<List<RegistroOcupacion>>(emptyList())
-
-    val registrosPermitidos: StateFlow<List<RegistroOcupacion>> =
-        _registrosPermitidos.asStateFlow()
+                else -> {
+                    usuarioSedeDao.getSedesPorUsuario(
+                        usuario.usuarioId
+                    )
+                }
+            }
+        }
 
     /**
-     * Configura el usuario que inició sesión.
+     * Sedes que puede ver el usuario.
+     */
+    val sedesPermitidas: StateFlow<List<Sede>> =
+        sedesAutorizadas
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                emptyList()
+            )
+
+    /**
+     * Historial filtrado por sedes autorizadas.
      *
-     * Se llamará desde la navegación.
+     * Si el usuario no tiene sedes,
+     * no se muestran registros.
+     */
+    val registrosPermitidos: StateFlow<List<RegistroOcupacion>> =
+        combine(
+            sesion,
+            sedesAutorizadas,
+            registroDao.getAll()
+        ) { usuario, listaSedes, listaRegistros ->
+
+            if (usuario.usuarioId == null) {
+
+                emptyList()
+
+            } else {
+
+                val idsPermitidos =
+                    listaSedes.map { it.id }.toSet()
+
+                listaRegistros.filter {
+                    it.sedeId in idsPermitidos
+                }
+            }
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            emptyList()
+        )
+
+    /**
+     * Configura al usuario autenticado.
+     *
+     * Se llamará desde navegations.kt.
      */
     fun configurarUsuario(
         usuarioId: Int?,
         esAdmin: Boolean
     ) {
 
-        _usuarioActualId.value = usuarioId
-        _esAdministrador.value = esAdmin
-
-        // Limpiar datos de la sesión anterior
-        _sedesPermitidas.value = emptyList()
-        _registrosPermitidos.value = emptyList()
-    }
-
-    /**
-     * Observa los datos y aplica los permisos.
-     *
-     * Las asignaciones se actualizan cuando
-     * el administrador modifica las sedes.
-     */
-    init {
-
-        viewModelScope.launch {
-
-            _usuarioActualId.collectLatest { usuarioId ->
-
-                if (usuarioId == null) {
-                    _sedesPermitidas.value = emptyList()
-                    _registrosPermitidos.value = emptyList()
-                    return@collectLatest
-                }
-
-                if (_esAdministrador.value) {
-
-                    sedes.collectLatest { listaSedes ->
-                        _sedesPermitidas.value = listaSedes
-                    }
-
-                } else {
-
-                    usuarioSedeDao
-                        .getSedesPorUsuario(usuarioId)
-                        .collectLatest { listaSedes ->
-                            _sedesPermitidas.value = listaSedes
-                        }
-                }
-            }
-        }
-
-        viewModelScope.launch {
-
-            registros.collectLatest { listaRegistros ->
-
-                val idsPermitidos =
-                    _sedesPermitidas.value.map { it.id }.toSet()
-
-                _registrosPermitidos.value =
-                    listaRegistros.filter {
-                        it.sedeId in idsPermitidos
-                    }
-            }
-        }
-
-        viewModelScope.launch {
-
-            _sedesPermitidas.collectLatest { listaSedes ->
-
-                val idsPermitidos =
-                    listaSedes.map { it.id }.toSet()
-
-                _registrosPermitidos.value =
-                    registros.value.filter {
-                        it.sedeId in idsPermitidos
-                    }
-            }
-        }
+        sesion.value = Sesion(
+            usuarioId = usuarioId,
+            esAdmin = usuarioId != null && esAdmin
+        )
     }
 
     /**
      * Actualiza un registro existente.
      *
-     * Antes de guardar, comprueba que el usuario
-     * tenga permiso para modificar su sede.
+     * Comprueba los permisos antes de guardar.
+     * Solo permite modificar:
+     * - Cantidad de prendas
+     * - Prenda olvidada
+     * - Observación
+     *
+     * No cambia sede, probador ni horarios.
      */
     fun actualizarRegistro(
         registro: RegistroOcupacion
     ) {
 
-        val usuarioId = _usuarioActualId.value
-            ?: return
+        val usuarioAlSolicitar = sesion.value
+
+        if (usuarioAlSolicitar.usuarioId == null) {
+            return
+        }
 
         viewModelScope.launch(Dispatchers.IO) {
 
-            // Verificar las sedes autorizadas
-            val idsPermitidos =
-                if (_esAdministrador.value) {
+            // Evitar guardar si cambió la sesión
+            if (sesion.value != usuarioAlSolicitar) {
+                return@launch
+            }
 
+            val autorizado = if (usuarioAlSolicitar.esAdmin) {
+
+                // El administrador puede editar
+                // registros de sedes existentes.
+                val sedesActuales =
                     db.sedeDao().getAll()
-                        .stateIn(
-                            this,
-                            SharingStarted.Eagerly,
-                            emptyList()
-                        )
-                        .value
-                        .map { it.id }
-                        .toSet()
+                        .first()
 
-                } else {
-
-                    usuarioSedeDao
-                        .getAsignacionesPorUsuario(usuarioId)
-                        .map { it.sedeId }
-                        .toSet()
+                sedesActuales.any {
+                    it.id == registro.sedeId
                 }
 
-            // Solo guardar si tiene permiso
-            if (registro.sedeId in idsPermitidos) {
+            } else {
 
-                registroDao.update(registro)
+                // El personal necesita tener
+                // la sede asignada.
+                val asignaciones =
+                    usuarioSedeDao.getAsignacionesPorUsuario(
+                        usuarioAlSolicitar.usuarioId
+                    )
+
+                asignaciones.any {
+                    it.sedeId == registro.sedeId
+                }
             }
+
+            if (!autorizado) {
+                return@launch
+            }
+
+            // Consultar el registro original.
+            val original = registroDao.getAll().first()
+                .firstOrNull { it.id == registro.id }
+                ?: return@launch
+
+            // Impedir modificar otra sede
+            if (original.sedeId != registro.sedeId) {
+                return@launch
+            }
+
+            // Comprobar nuevamente la sesión
+            if (sesion.value != usuarioAlSolicitar) {
+                return@launch
+            }
+
+            // Conservar los datos originales
+            val actualizado = original.copy(
+                cantidadPrendas = registro.cantidadPrendas,
+                prendaOlvidada = registro.prendaOlvidada,
+                observacion = registro.observacion
+            )
+
+            registroDao.update(actualizado)
         }
     }
 }
