@@ -42,7 +42,12 @@ import com.example.probadores_rinconsur.viewmodels.HistorialViewModel
 
 /**
  * Historial de usos finalizados.
- * Permite consultar y editar registros de ocupación.
+ *
+ * Permite consultar y editar:
+ * - Cantidad de prendas
+ * - Prenda olvidada
+ * - Observaciones
+ *
  * Disponible para personal y administrador.
  */
 @Composable
@@ -53,6 +58,7 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
 
     val nombreSede = sedes.associate { it.id to it.nombre }
 
+    // Sede seleccionada en el filtro
     var sedeId by rememberSaveable {
         mutableIntStateOf(0)
     }
@@ -62,13 +68,16 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
         mutableStateOf<RegistroOcupacion?>(null)
     }
 
+    // Filtrar historial según sede seleccionada
     val lista = if (sedeId == 0) {
         registros
     } else {
         registros.filter { it.sedeId == sedeId }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
 
         // Filtro por sede
         SedeChips(
@@ -79,12 +88,14 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
             incluirTodas = true
         )
 
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
 
             if (lista.isEmpty()) {
 
                 Text(
-                    "Sin registros.",
+                    text = "Sin registros.",
                     modifier = Modifier.align(Alignment.Center)
                 )
 
@@ -95,7 +106,10 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
 
-                    items(lista, key = { it.id }) { r ->
+                    items(
+                        items = lista,
+                        key = { it.id }
+                    ) { r ->
 
                         Card(
                             modifier = Modifier.fillMaxWidth()
@@ -106,26 +120,28 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
 
+                                // Probador, sede y fecha
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
 
                                     Text(
-                                        "Probador ${r.numeroProbador} · " +
-                                                (nombreSede[r.sedeId] ?: "Sede eliminada"),
+                                        text = "Probador ${r.numeroProbador} · " +
+                                                (nombreSede[r.sedeId]
+                                                    ?: "Sede eliminada"),
                                         style = MaterialTheme.typography.titleMedium,
                                         modifier = Modifier.weight(1f)
                                     )
 
                                     Text(
-                                        Formato.fecha(r.inicioMillis),
+                                        text = Formato.fecha(r.inicioMillis),
                                         style = MaterialTheme.typography.labelMedium
                                     )
                                 }
 
-                                // Horario y cantidad de prendas
+                                // Horarios y cantidad de prendas
                                 Text(
-                                    "${Formato.hora(r.inicioMillis)} - " +
+                                    text = "${Formato.hora(r.inicioMillis)} - " +
                                             "${Formato.hora(r.finMillis)} · " +
                                             "${Formato.minutosEntre(r.inicioMillis, r.finMillis)} min · " +
                                             "${r.cantidadPrendas} prenda(s)"
@@ -135,7 +151,7 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
                                 if (r.prendaOlvidada) {
 
                                     Text(
-                                        "Prenda olvidada",
+                                        text = "Prenda olvidada",
                                         fontWeight = FontWeight.SemiBold,
                                         color = ColoresOlvidada.principal
                                     )
@@ -143,12 +159,21 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
                                 } else {
 
                                     Text(
-                                        "Sin incidencia",
+                                        text = "Sin incidencia",
                                         style = MaterialTheme.typography.bodySmall
                                     )
                                 }
 
-                                // Botón para editar el registro
+                                // Mostrar observación si existe
+                                if (r.observacion.isNotBlank()) {
+
+                                    Text(
+                                        text = "Observación: ${r.observacion}",
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+
+                                // Botón para editar
                                 OutlinedButton(
                                     onClick = {
                                         registroSeleccionado = r
@@ -165,14 +190,16 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
         }
     }
 
-    // Abrir formulario de edición
+    // Mostrar formulario de edición
     registroSeleccionado?.let { registro ->
 
         DialogoEditarRegistro(
             registro = registro,
+
             onDismiss = {
                 registroSeleccionado = null
             },
+
             onGuardar = { registroEditado ->
 
                 viewModel.actualizarRegistro(registroEditado)
@@ -184,8 +211,12 @@ fun HistorialScreen(viewModel: HistorialViewModel) {
 }
 
 /**
- * Ventana para editar la cantidad de prendas
- * y el estado de incidencia.
+ * Ventana para editar un registro del historial.
+ *
+ * Permite modificar cantidad de prendas,
+ * incidencia y observación.
+ *
+ * No modifica las fechas ni los horarios.
  */
 @Composable
 private fun DialogoEditarRegistro(
@@ -194,14 +225,22 @@ private fun DialogoEditarRegistro(
     onGuardar: (RegistroOcupacion) -> Unit
 ) {
 
+    // Cantidad de prendas actual
     var cantidadPrendas by remember(registro.id) {
         mutableStateOf(registro.cantidadPrendas.toString())
     }
 
+    // Estado de prenda olvidada
     var prendaOlvidada by remember(registro.id) {
         mutableStateOf(registro.prendaOlvidada)
     }
 
+    // Observación actual del registro
+    var observacion by remember(registro.id) {
+        mutableStateOf(registro.observacion)
+    }
+
+    // Validar cantidad de prendas
     val cantidad = cantidadPrendas.toIntOrNull()
     val cantidadValida = cantidad != null && cantidad >= 0
 
@@ -219,44 +258,52 @@ private fun DialogoEditarRegistro(
             ) {
 
                 Text(
-                    "Probador ${registro.numeroProbador}",
+                    text = "Probador ${registro.numeroProbador}",
                     style = MaterialTheme.typography.titleMedium
                 )
 
                 Text(
-                    "Puedes corregir la cantidad de prendas " +
-                            "y el estado de incidencia."
+                    text = "Puedes corregir la cantidad de prendas, " +
+                            "indicar si hubo una prenda olvidada " +
+                            "y agregar una observación."
                 )
 
-                // Campo para modificar cantidad de prendas
+                // Modificar cantidad de prendas
                 OutlinedTextField(
                     value = cantidadPrendas,
+
                     onValueChange = { nuevoValor ->
                         cantidadPrendas = nuevoValor
                     },
+
                     label = {
                         Text("Cantidad de prendas")
                     },
+
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number
                     ),
+
                     singleLine = true,
                     isError = !cantidadValida,
+
                     supportingText = {
                         if (!cantidadValida) {
                             Text("Ingresa una cantidad válida (0 o más).")
                         }
                     },
+
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Marcar o desmarcar incidencia
+                // Marcar o desmarcar prenda olvidada
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
                     Checkbox(
                         checked = prendaOlvidada,
+
                         onCheckedChange = {
                             prendaOlvidada = it
                         }
@@ -265,8 +312,32 @@ private fun DialogoEditarRegistro(
                     Text("Prenda olvidada")
                 }
 
+                // Agregar o editar observación
+                OutlinedTextField(
+                    value = observacion,
+
+                    onValueChange = {
+                        observacion = it
+                    },
+
+                    label = {
+                        Text("Observación")
+                    },
+
+                    placeholder = {
+                        Text(
+                            "Ej.: Cliente olvidó una polera negra"
+                        )
+                    },
+
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4
+                )
+
                 Text(
-                    "La fecha y los horarios originales no se modificarán.",
+                    text = "La fecha y los horarios originales " +
+                            "no se modificarán.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }
@@ -276,13 +347,17 @@ private fun DialogoEditarRegistro(
 
             Button(
                 enabled = cantidadValida,
+
                 onClick = {
 
+                    // Crear copia con los datos modificados
                     val registroEditado = registro.copy(
                         cantidadPrendas = cantidad!!,
-                        prendaOlvidada = prendaOlvidada
+                        prendaOlvidada = prendaOlvidada,
+                        observacion = observacion.trim()
                     )
 
+                    // Guardar cambios en Room
                     onGuardar(registroEditado)
                 }
             ) {
