@@ -53,7 +53,7 @@ fun Modifier.pulsoYRotacion(): Modifier {
         initialValue = 0.9f,
         targetValue = 1.1f,
         animationSpec = infiniteRepeatable(
-            tween(900, easing = FastOutSlowInEasing),
+            tween(3000, easing = FastOutSlowInEasing),
             RepeatMode.Reverse
         ),
         label = "scale"
@@ -62,7 +62,7 @@ fun Modifier.pulsoYRotacion(): Modifier {
         initialValue = -8f,
         targetValue = 8f,
         animationSpec = infiniteRepeatable(
-            tween(1400),
+            tween(4000),
             RepeatMode.Reverse
         ),
         label = "rotation"

@@ -63,7 +63,7 @@ dependencies {
     // Navigation Compose
     implementation(libs.androidx.navigation.compose)
 
-    // Coil
+    // Coil}
     implementation(libs.coil.compose)
 
     // CameraX
