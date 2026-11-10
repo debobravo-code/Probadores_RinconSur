@@ -1,3 +1,4 @@
+
 package com.example.probadores_rinconsur.navegations
 
 import androidx.compose.foundation.layout.Spacer
@@ -69,8 +70,11 @@ import com.example.probadores_rinconsur.viewmodels.TipoUsuarioViewModel
 import com.example.probadores_rinconsur.viewmodels.UserViewModel
 import kotlinx.coroutines.launch
 
-/** Rutas de navegación */
+/**
+ * Rutas de navegación de RinconSur.
+ */
 object Routes {
+
     const val LOGIN = "login"
     const val HOME = "home"
     const val PROBADORES = "probadores"
@@ -89,13 +93,15 @@ object Routes {
     fun reporteForm(
         id: Int = 0,
         probadorId: Int = 0
-    ) =
-        "reporte_form?id=$id&probadorId=$probadorId"
+    ) = "reporte_form?id=$id&probadorId=$probadorId"
 
     fun userForm(id: Int = 0) =
         "user_form?id=$id"
 }
 
+/**
+ * Elementos del menú lateral.
+ */
 data class MenuItem(
     val route: String,
     val label: String,
@@ -103,40 +109,46 @@ data class MenuItem(
     val soloAdmin: Boolean = false
 )
 
-/** Opciones del menú lateral */
 val menuItems = listOf(
+
     MenuItem(
         Routes.HOME,
         "Inicio",
         Icons.Default.Home
     ),
+
     MenuItem(
         Routes.PROBADORES,
         "Probadores",
         Icons.Default.Checkroom
     ),
+
     MenuItem(
         Routes.REPORTES,
         "Reportes de prendas",
         Icons.Default.Description
     ),
+
     MenuItem(
         Routes.HISTORIAL,
         "Historial",
         Icons.Default.History
     ),
+
     MenuItem(
         Routes.USERS,
         "Usuarios",
         Icons.Default.People,
         soloAdmin = true
     ),
+
     MenuItem(
         Routes.SEDES,
         "Sedes",
         Icons.Default.Storefront,
         soloAdmin = true
     ),
+
     MenuItem(
         Routes.ESTADISTICAS,
         "Estadísticas de prendas",
@@ -145,8 +157,12 @@ val menuItems = listOf(
     )
 )
 
+/**
+ * Título que aparece en la barra superior.
+ */
 private fun titleFor(route: String?): String =
     when (route) {
+
         Routes.HOME -> "Inicio"
         Routes.PROBADORES -> "Probadores"
         Routes.PROBADOR_FORM -> "Probador"
@@ -157,9 +173,15 @@ private fun titleFor(route: String?): String =
         Routes.USER_FORM -> "Usuario"
         Routes.SEDES -> "Sedes"
         Routes.ESTADISTICAS -> "Estadísticas de prendas"
+
         else -> ""
     }
 
+/**
+ * Navegación principal de la aplicación.
+ *
+ * Identifica al usuario conectado y su rol.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavigation(
@@ -172,6 +194,7 @@ fun AppNavigation(
     sedeViewModel: SedeViewModel,
     estadisticasViewModel: EstadisticasViewModel
 ) {
+
     val navController = rememberNavController()
 
     val drawerState =
@@ -185,11 +208,17 @@ fun AppNavigation(
     val currentRoute =
         backStackEntry?.destination?.route
 
+    // Usuario autenticado
     val loginState by
     loginViewModel.uiState.collectAsStateWithLifecycle()
 
+    // Identificar al administrador
     val esAdmin =
         loginState.loggedUser?.esAdministrador() == true
+
+    // Identificador del usuario conectado
+    val currentUserId =
+        loginState.loggedUser?.id
 
     val isLogin =
         currentRoute == null ||
@@ -201,10 +230,23 @@ fun AppNavigation(
         }
 
     fun navigateTopLevel(route: String) {
+
+        // Impedir navegación desde el menú
+        // hacia opciones exclusivas del administrador.
+        val opcion = menuItems.find {
+            it.route == route
+        }
+
+        if (opcion?.soloAdmin == true && !esAdmin) {
+            return
+        }
+
         navController.navigate(route) {
+
             popUpTo(Routes.HOME) {
                 saveState = false
             }
+
             launchSingleTop = true
         }
     }
@@ -212,7 +254,9 @@ fun AppNavigation(
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = !isLogin,
+
         drawerContent = {
+
             ModalDrawerSheet {
 
                 Spacer(
@@ -220,32 +264,28 @@ fun AppNavigation(
                 )
 
                 Text(
-                    loginState.loggedUser?.name ?: "",
-                    style =
-                        MaterialTheme.typography.titleLarge,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = 24.dp
-                        )
-                )
-
-                Text(
-                    loginState.loggedUser?.email ?: "",
-                    style =
-                        MaterialTheme.typography.bodyMedium,
-                    modifier =
-                        Modifier.padding(
-                            horizontal = 24.dp,
-                            vertical = 4.dp
-                        )
-                )
-
-                HorizontalDivider(
-                    Modifier.padding(
-                        vertical = 8.dp
+                    text = loginState.loggedUser?.name ?: "",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(
+                        horizontal = 24.dp
                     )
                 )
 
+                Text(
+                    text = loginState.loggedUser?.email ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(
+                        horizontal = 24.dp,
+                        vertical = 4.dp
+                    )
+                )
+
+                HorizontalDivider(
+                    Modifier.padding(vertical = 8.dp)
+                )
+
+                // El personal no ve las opciones
+                // exclusivas del administrador.
                 menuItems
                     .filter {
                         esAdmin || !it.soloAdmin
@@ -256,48 +296,50 @@ fun AppNavigation(
                             label = {
                                 Text(item.label)
                             },
+
                             icon = {
                                 Icon(
                                     item.icon,
                                     contentDescription = null
                                 )
                             },
+
                             selected =
                                 currentRoute == item.route,
+
                             onClick = {
+
                                 scope.launch {
                                     drawerState.close()
                                 }
 
-                                navigateTopLevel(
-                                    item.route
-                                )
+                                navigateTopLevel(item.route)
                             },
-                            modifier =
-                                Modifier.padding(
-                                    NavigationDrawerItemDefaults
-                                        .ItemPadding
-                                )
+
+                            modifier = Modifier.padding(
+                                NavigationDrawerItemDefaults.ItemPadding
+                            )
                         )
                     }
 
                 HorizontalDivider(
-                    Modifier.padding(
-                        vertical = 8.dp
-                    )
+                    Modifier.padding(vertical = 8.dp)
                 )
 
                 NavigationDrawerItem(
                     label = {
                         Text("Cerrar sesión")
                     },
+
                     icon = {
                         Icon(
                             Icons.AutoMirrored.Filled.Logout,
                             contentDescription = null
                         )
                     },
+
                     selected = false,
+
                     onClick = {
 
                         scope.launch {
@@ -306,21 +348,17 @@ fun AppNavigation(
 
                         loginViewModel.logout()
 
-                        navController.navigate(
-                            Routes.LOGIN
-                        ) {
-                            popUpTo(
-                                navController.graph.id
-                            ) {
+                        navController.navigate(Routes.LOGIN) {
+
+                            popUpTo(navController.graph.id) {
                                 inclusive = true
                             }
                         }
                     },
-                    modifier =
-                        Modifier.padding(
-                            NavigationDrawerItemDefaults
-                                .ItemPadding
-                        )
+
+                    modifier = Modifier.padding(
+                        NavigationDrawerItemDefaults.ItemPadding
+                    )
                 )
             }
         }
@@ -333,12 +371,9 @@ fun AppNavigation(
 
                     TopAppBar(
                         title = {
-                            Text(
-                                titleFor(
-                                    currentRoute
-                                )
-                            )
+                            Text(titleFor(currentRoute))
                         },
+
                         navigationIcon = {
 
                             if (isTopLevel) {
@@ -350,10 +385,10 @@ fun AppNavigation(
                                         }
                                     }
                                 ) {
+
                                     Icon(
                                         Icons.Default.Menu,
-                                        contentDescription =
-                                            "Menú"
+                                        contentDescription = "Menú"
                                     )
                                 }
 
@@ -361,28 +396,23 @@ fun AppNavigation(
 
                                 IconButton(
                                     onClick = {
-                                        navController
-                                            .popBackStack()
+                                        navController.popBackStack()
                                     }
                                 ) {
+
                                     Icon(
-                                        Icons.AutoMirrored
-                                            .Filled
-                                            .ArrowBack,
-                                        contentDescription =
-                                            "Volver"
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = "Volver"
                                     )
                                 }
                             }
                         },
+
                         colors =
-                            TopAppBarDefaults
-                                .topAppBarColors(
-                                    containerColor =
-                                        MaterialTheme
-                                            .colorScheme
-                                            .primaryContainer
-                                )
+                            TopAppBarDefaults.topAppBarColors(
+                                containerColor =
+                                    MaterialTheme.colorScheme.primaryContainer
+                            )
                     )
                 }
             }
@@ -390,38 +420,31 @@ fun AppNavigation(
 
             AppNavHost(
                 navController = navController,
-                modifier =
-                    Modifier.padding(
-                        innerPadding
-                    ),
-                loginViewModel =
-                    loginViewModel,
-                probadorViewModel =
-                    probadorViewModel,
-                reporteViewModel =
-                    reporteViewModel,
-                historialViewModel =
-                    historialViewModel,
-                userViewModel =
-                    userViewModel,
-                tipoUsuarioViewModel =
-                    tipoUsuarioViewModel,
-                sedeViewModel =
-                    sedeViewModel,
-                estadisticasViewModel =
-                    estadisticasViewModel,
-                currentUserId =
-                    loginState.loggedUser?.id,
+                modifier = Modifier.padding(innerPadding),
+
+                loginViewModel = loginViewModel,
+                probadorViewModel = probadorViewModel,
+                reporteViewModel = reporteViewModel,
+                historialViewModel = historialViewModel,
+                userViewModel = userViewModel,
+                tipoUsuarioViewModel = tipoUsuarioViewModel,
+                sedeViewModel = sedeViewModel,
+                estadisticasViewModel = estadisticasViewModel,
+
+                currentUserId = currentUserId,
                 currentUserName =
                     loginState.loggedUser?.name ?: "",
+
                 esAdmin = esAdmin,
-                onNavigateTopLevel =
-                    ::navigateTopLevel
+                onNavigateTopLevel = ::navigateTopLevel
             )
         }
     }
 }
 
+/**
+ * Contiene las pantallas y rutas de la aplicación.
+ */
 @Composable
 private fun AppNavHost(
     navController: NavHostController,
@@ -448,118 +471,113 @@ private fun AppNavHost(
     )
 
     val reporteArgs = listOf(
+
         navArgument("id") {
             type = NavType.IntType
             defaultValue = 0
         },
+
         navArgument("probadorId") {
             type = NavType.IntType
             defaultValue = 0
         }
     )
 
-    // ANIMACIÓN 3 (view/utils/Animations.kt):
-    // deslizamiento horizontal entre pantallas
+    // Animaciones de navegación existentes
     NavHost(
         navController = navController,
         startDestination = Routes.LOGIN,
         modifier = modifier,
+
         enterTransition = navEnterTransition,
         exitTransition = navExitTransition,
         popEnterTransition = navPopEnterTransition,
         popExitTransition = navPopExitTransition
     ) {
 
+        // INICIO DE SESIÓN
         composable(Routes.LOGIN) {
 
-            LoginScreen(
-                loginViewModel
-            ) {
+            LoginScreen(loginViewModel) {
 
-                navController.navigate(
-                    Routes.HOME
-                ) {
-                    popUpTo(
-                        Routes.LOGIN
-                    ) {
+                navController.navigate(Routes.HOME) {
+
+                    popUpTo(Routes.LOGIN) {
                         inclusive = true
                     }
                 }
             }
         }
 
+        // INICIO
         composable(Routes.HOME) {
 
             HomeScreen(
-                userName =
-                    currentUserName,
-                esAdmin =
-                    esAdmin,
-                onNavigate =
-                    onNavigateTopLevel
+                userName = currentUserName,
+                esAdmin = esAdmin,
+                onNavigate = onNavigateTopLevel
             )
         }
 
+        // LISTADO DE PROBADORES
         composable(Routes.PROBADORES) {
 
             ProbadorListScreen(
-                viewModel =
-                    probadorViewModel,
-                userViewModel =
-                    userViewModel,
-                currentUserId =
-                    currentUserId,
-                esAdmin =
-                    esAdmin,
+                viewModel = probadorViewModel,
+                userViewModel = userViewModel,
+                currentUserId = currentUserId,
+                esAdmin = esAdmin,
+
                 onAdd = {
                     navController.navigate(
                         Routes.probadorForm()
                     )
                 },
+
                 onEdit = { id ->
                     navController.navigate(
                         Routes.probadorForm(id)
                     )
                 },
+
                 onReportar = { id ->
                     navController.navigate(
-                        Routes.reporteForm(
-                            probadorId = id
-                        )
+                        Routes.reporteForm(probadorId = id)
                     )
                 }
             )
         }
 
+        // FORMULARIO DE PROBADORES
         composable(
             Routes.PROBADOR_FORM,
             arguments = idArg
         ) { entry ->
 
             ProbadorFormScreen(
-                viewModel =
-                    probadorViewModel,
+                viewModel = probadorViewModel,
+
                 probadorId =
-                    entry.arguments
-                        ?.getInt("id")
-                        ?: 0,
+                    entry.arguments?.getInt("id") ?: 0,
+
                 onDone = {
-                    navController
-                        .popBackStack()
+                    navController.popBackStack()
                 }
             )
         }
 
+        // LISTADO DE REPORTES
         composable(Routes.REPORTES) {
 
             ReporteListScreen(
-                viewModel =
-                    reporteViewModel,
+                viewModel = reporteViewModel,
+
                 onAdd = {
                     navController.navigate(
                         Routes.reporteForm()
                     )
                 },
+
                 onEdit = { id ->
                     navController.navigate(
                         Routes.reporteForm(id)
@@ -568,94 +586,108 @@ private fun AppNavHost(
             )
         }
 
+        // FORMULARIO DE REPORTES
         composable(
             Routes.REPORTE_FORM,
             arguments = reporteArgs
         ) { entry ->
 
             ReporteFormScreen(
-                viewModel =
-                    reporteViewModel,
+                viewModel = reporteViewModel,
+
                 reporteId =
-                    entry.arguments
-                        ?.getInt("id")
-                        ?: 0,
+                    entry.arguments?.getInt("id") ?: 0,
+
                 probadorIdInicial =
-                    entry.arguments
-                        ?.getInt("probadorId")
-                        ?: 0,
+                    entry.arguments?.getInt("probadorId") ?: 0,
+
                 onDone = {
-                    navController
-                        .popBackStack()
+                    navController.popBackStack()
                 }
             )
         }
 
+        // HISTORIAL
+        // Próximo paso: conectar currentUserId
+        // y esAdmin para filtrar las sedes.
         composable(Routes.HISTORIAL) {
 
             HistorialScreen(
-                historialViewModel
+                viewModel = historialViewModel
             )
         }
 
+        // USUARIOS: SOLO ADMINISTRADOR
         composable(Routes.USERS) {
 
-            UserListScreen(
-                viewModel =
-                    userViewModel,
-                tipoUsuarioViewModel =
-                    tipoUsuarioViewModel,
-                currentUserId =
-                    currentUserId,
-                onAdd = {
-                    navController.navigate(
-                        Routes.userForm()
-                    )
-                },
-                onEdit = { id ->
-                    navController.navigate(
-                        Routes.userForm(id)
-                    )
-                }
-            )
+            if (esAdmin) {
+
+                UserListScreen(
+                    viewModel = userViewModel,
+                    tipoUsuarioViewModel = tipoUsuarioViewModel,
+                    currentUserId = currentUserId,
+
+                    onAdd = {
+                        navController.navigate(
+                            Routes.userForm()
+                        )
+                    },
+
+                    onEdit = { id ->
+                        navController.navigate(
+                            Routes.userForm(id)
+                        )
+                    }
+                )
+
+            } else {
+                AccesoRestringido()
+            }
         }
 
+        // FORMULARIO DE USUARIOS: SOLO ADMIN
         composable(
             Routes.USER_FORM,
             arguments = idArg
         ) { entry ->
 
-            UserFormScreen(
-                viewModel =
-                    userViewModel,
-                tipoUsuarioViewModel =
-                    tipoUsuarioViewModel,
-                sedeViewModel =
-                    sedeViewModel,
-                userId =
-                    entry.arguments
-                        ?.getInt("id")
-                        ?: 0,
-                onDone = {
-                    navController
-                        .popBackStack()
-                }
-            )
+            if (esAdmin) {
+
+                UserFormScreen(
+                    viewModel = userViewModel,
+                    tipoUsuarioViewModel = tipoUsuarioViewModel,
+                    sedeViewModel = sedeViewModel,
+
+                    userId =
+                        entry.arguments?.getInt("id") ?: 0,
+
+                    onDone = {
+                        navController.popBackStack()
+                    }
+                )
+
+            } else {
+                AccesoRestringido()
+            }
         }
 
+        // SEDES: SOLO ADMINISTRADOR
         composable(Routes.SEDES) {
 
-            SedeScreen(
-                sedeViewModel
-            )
+            if (esAdmin) {
+
+                SedeScreen(
+                    sedeViewModel
+                )
+
+            } else {
+                AccesoRestringido()
+            }
         }
 
+        // ESTADÍSTICAS: SOLO ADMINISTRADOR
         composable(Routes.ESTADISTICAS) {
 
-            // Defensa extra:
-            // aunque el menú ya la oculta,
-            // Personal no puede entrar
-            // a esta pantalla.
             if (esAdmin) {
 
                 EstadisticasScreen(
@@ -663,13 +695,21 @@ private fun AppNavHost(
                 )
 
             } else {
-
-                Text(
-                    "Solo el Administrador puede ver las estadísticas.",
-                    modifier =
-                        Modifier.padding(16.dp)
-                )
+                AccesoRestringido()
             }
         }
     }
+}
+
+/**
+ * Mensaje para pantallas exclusivas
+ * del administrador.
+ */
+@Composable
+private fun AccesoRestringido() {
+
+    Text(
+        text = "Solo el Administrador puede acceder a esta pantalla.",
+        modifier = Modifier.padding(16.dp)
+    )
 }
