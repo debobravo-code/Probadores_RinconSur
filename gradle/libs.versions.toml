@@ -1,3 +1,4 @@
+
 [versions]
 agp = "9.5.0"
 kotlin = "2.2.10"
@@ -23,6 +24,10 @@ coil = "2.7.0"
 
 # CameraX
 cameraX = "1.5.0"
+
+# Retrofit y OkHttp
+retrofit = "2.11.0"
+okhttp = "4.12.0"
 
 
 [libraries]
@@ -61,6 +66,14 @@ androidx-camera-core = { group = "androidx.camera", name = "camera-core", versio
 androidx-camera-camera2 = { group = "androidx.camera", name = "camera-camera2", version.ref = "cameraX" }
 androidx-camera-lifecycle = { group = "androidx.camera", name = "camera-lifecycle", version.ref = "cameraX" }
 androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraX" }
+
+# Retrofit
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
+retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+
+# OkHttp
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 
 # Tests
 junit = { group = "junit", name = "junit", version.ref = "junit" }
