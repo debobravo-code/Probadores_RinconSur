@@ -282,8 +282,7 @@ fun SedeScreen(
                                             sede.id
                                         )
 
-                                    cantidadProbadores =
-                                        cantidad.toString()
+                                    cantidadProbadores = if (cantidad >= 0) cantidad.toString() else ""
                                 }
                             }
                         ) {

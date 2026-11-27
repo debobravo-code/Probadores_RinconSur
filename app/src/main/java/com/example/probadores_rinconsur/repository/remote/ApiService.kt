@@ -26,13 +26,13 @@ interface ApiService {
 
     @POST("api/sedes")
     suspend fun crearSede(
-        @Body sede: Sede
+        @Body sede: SedeRequest
     ): Response<Sede>
 
     @PUT("api/sedes/{id}")
     suspend fun actualizarSede(
         @Path("id") id: Int,
-        @Body sede: Sede
+        @Body sede: SedeRequest
     ): Response<Sede>
 
     @DELETE("api/sedes/{id}")
