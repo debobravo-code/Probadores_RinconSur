@@ -1,6 +1,6 @@
 # Probadores RinconSur
 
-**Integrantes:** Debora Bravo y Mikela Plama
+**Integrantes:** Debora Bravo y Mikela Palma
 **Asignatura:** Desarrollo de Aplicaciones Móviles (DSY1105) – Evaluación Parcial 4, Duoc UC
 
 ## Descripción
@@ -32,7 +32,7 @@ Pantalla (Compose) → ViewModel → Repository ─┬→ Retrofit → Microserv
 - **MySQL es la fuente de verdad.** Cada cambio (crear, editar, eliminar) se envía primero al microservicio.
 - Si el microservicio responde bien, el Repository baja la lista actualizada y **reemplaza** la copia de Room en una sola transacción. Los ids de Room son los mismos de MySQL, por eso no se duplican registros.
 - **Las pantallas leen siempre desde Room.** Si no hay internet se siguen viendo los últimos datos guardados y la app avisa que no pudo actualizar.
-- Sin internet no se puede guardar ni editar (se muestra un aviso), así la copia local nunca queda distinta de MySQL.
+- Sin conexión al backend no se puede guardar ni editar. La copia local puede quedar desactualizada hasta la siguiente sincronización exitosa.
 - El login siempre se valida en el microservicio.
 
 ## Organización del proyecto
@@ -41,8 +41,8 @@ Carpeta `app/src/main/java/com/example/probadores_rinconsur/`:
 
 - `repository/models/`: modelos (entidades de Room y datos del JSON).
 - `repository/data/`: Room (`AppDatabase` y los DAO).
-- `repository/remote/`: Retrofit (`ApiService`, `RetrofitClient`, `ClimaApiService`) y `dto/` con las peticiones.
-- `repository/`: un Repository por recurso (`SedeRepository`, `ProbadorRepository`, `ReporteRepository`, `RegistroRepository`, `UserRepository`, `TipoUsuarioRepository`).
+- `Retrofit/`: interfaces API separadas por entidad, RetrofitClient, ClimaApiService y carpeta dto/ con los datos de las peticiones.
+- `repository/remote/`: un Repository por recurso (`SedeRepository`, `ProbadorRepository`, `ReporteRepository`, `RegistroRepository`, `UserRepository`, `TipoUsuarioRepository`).
 - `viewmodels/`: lógica y estado de cada pantalla.
 - `view/ui/` y `view/utils/`: pantallas y componentes.
 - `navegations/`: navegación entre pantallas.
@@ -83,7 +83,7 @@ Carpeta `app/src/main/java/com/example/probadores_rinconsur/`:
 
 ## Pruebas unitarias (Kotest + MockK, Guía 15)
 
-Hay dos pruebas, una por capa:
+Se ejecutaron exitosamente dos pruebas unitarias, una por capa, sin errores ni fallos:
 
 | Prueba | Qué comprueba |
 |---|---|
@@ -93,8 +93,23 @@ Hay dos pruebas, una por capa:
 - Android Studio: clic derecho en `app/src/test` → **Run Tests** (con **Run Tests with Coverage** se ve el porcentaje de cobertura).
 - Terminal: `./gradlew testDebugUnitTest`
 
-## APK firmado
+## APK firmada
 
-Pendiente de generar (**Build → Generate Signed App Bundle / APK → APK**). El proyecto ya está preparado: permiso de Internet, tráfico HTTP permitido para el backend local y reglas R8 (`app/src/main/keepRules/rules.keep`) que protegen los modelos de Retrofit/Gson en la versión release. Un APK instalado en el celular se conecta al backend con `adb reverse` (celular por USB) o cambiando `BASE_URL` por la IP del computador.
+La aplicacion fue compilada en la variante Release y firmada mediante Android Studio.
 
-*(Agregar aquí la captura del APK firmado y del archivo .jks.)*
+- APK: Probadores_RinconSur.apk
+- Archivo de firma: Probadores_RinconSur.jks
+- Alias: rinconsur
+- Algoritmo: RSA de 2048 bits
+- Esquema de firma: APK Signature Scheme v2
+- Verificacion mediante apksigner: exitosa.
+
+La APK y el archivo JKS se entregan por separado al docente.
+
+La clave de firma y sus contrasenas no se publican en GitHub.
+
+Para conectar la APK al backend local, iniciar el servidor, conectar el dispositivo por USB y ejecutar:
+
+    adb reverse tcp:8080 tcp:8080
+
+La firma digital fue verificada correctamente. La prueba de ejecucion de la APK Release queda pendiente.
