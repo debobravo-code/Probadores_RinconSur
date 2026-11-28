@@ -1,31 +1,24 @@
-
 package com.example.probadores_rinconsur.repository.data
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.repository.models.UsuarioSede
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Gestiona las sedes asignadas a cada usuario.
+ * Sedes asignadas a cada usuario (copia local de MySQL).
  *
- * El administrador puede asignar o quitar sedes.
- * El personal solo debe acceder a las sedes
- * que tiene asignadas.
+ * El administrador asigna o quita sedes.
+ * El personal solo accede a las sedes que tiene asignadas.
  */
 @Dao
-interface UsuarioSedeDao {
+abstract class UsuarioSedeDao {
 
-    /**
-     * Obtiene únicamente las sedes asignadas
-     * al usuario indicado.
-     *
-     * Se utiliza para mostrar las sedes
-     * autorizadas al trabajador.
-     */
+    // Solo las sedes asignadas al usuario indicado
     @Query(
         """
         SELECT sedes.*
@@ -36,45 +29,19 @@ interface UsuarioSedeDao {
         ORDER BY sedes.id ASC
         """
     )
-    fun getSedesPorUsuario(
-        usuarioId: Int
-    ): Flow<List<Sede>>
+    abstract fun getSedesPorUsuario(usuarioId: Int): Flow<List<Sede>>
 
-    /**
-     * Obtiene las asignaciones actuales.
-     *
-     * Permite conocer qué sedes tiene
-     * asignadas un trabajador.
-     */
-    @Query(
-        "SELECT * FROM usuario_sede WHERE usuarioId = :usuarioId"
-    )
-    suspend fun getAsignacionesPorUsuario(
-        usuarioId: Int
-    ): List<UsuarioSede>
-
-    /**
-     * Asigna una sede a un usuario.
-     *
-     * IGNORE evita duplicar una asignación
-     * que ya existe.
-     */
+    // IGNORE evita duplicar una asignación que ya existe
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(
-        asignacion: UsuarioSede
-    )
+    abstract suspend fun insert(asignacion: UsuarioSede)
 
-    /**
-     * Elimina todas las asignaciones
-     * de sedes de un usuario.
-     *
-     * Se utiliza al actualizar las sedes
-     * autorizadas por el administrador.
-     */
-    @Query(
-        "DELETE FROM usuario_sede WHERE usuarioId = :usuarioId"
-    )
-    suspend fun deletePorUsuario(
-        usuarioId: Int
-    )
+    @Query("DELETE FROM usuario_sede WHERE usuarioId = :usuarioId")
+    abstract suspend fun deletePorUsuario(usuarioId: Int)
+
+    // Cambia todas las sedes de un usuario en una sola transacción
+    @Transaction
+    open suspend fun reemplazarSedes(usuarioId: Int, sedesIds: List<Int>) {
+        deletePorUsuario(usuarioId)
+        sedesIds.forEach { insert(UsuarioSede(usuarioId, it)) }
+    }
 }

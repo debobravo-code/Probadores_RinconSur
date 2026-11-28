@@ -1,68 +1,71 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import android.database.sqlite.SQLiteConstraintException
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.data.AppDatabase
+import com.example.probadores_rinconsur.repository.UserRepository
 import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.repository.models.User
-import com.example.probadores_rinconsur.repository.models.UsuarioSede
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class UserViewModel(application: Application) : AndroidViewModel(application) {
+private const val SIN_CONEXION = "No se pudo conectar con el servidor"
 
-    private val database = AppDatabase.getDatabase(application)
+class UserViewModel(
+    private val repo: UserRepository = UserRepository()
+) : ViewModel() {
 
-    private val userDao = database.userDao()
-    private val usuarioSedeDao = database.usuarioSedeDao()
-    private val sedeDao = database.sedeDao()
-
-    // READ
-    val users: StateFlow<List<User>> = userDao.getAllUsers()
-        .stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5000),
-            emptyList()
-        )
+    // READ: la lista viene de Room (copia local de MySQL)
+    val users: StateFlow<List<User>> =
+        repo.users.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     // Mensajes de error para la vista
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    init {
+        cargarUsuarios()
+    }
+
     fun clearMessage() {
         _message.value = null
     }
 
-    // Obtiene un usuario por su ID
-    suspend fun getUser(id: Int): User? =
-        withContext(Dispatchers.IO) {
-            userDao.getUserById(id)
+    /** Vuelve a pedir la lista de usuarios al servidor. */
+    fun cargarUsuarios() {
+        viewModelScope.launch {
+            actualizarListado()
         }
+    }
+
+    private suspend fun actualizarListado() {
+        // Si no hay conexión, Room conserva la última copia y se sigue viendo
+        if (!repo.refrescar()) {
+            _message.value =
+                "No se pudo actualizar desde el servidor. Se muestran los datos guardados"
+        }
+    }
+
+    // Obtiene un usuario por su ID
+    suspend fun getUser(id: Int): User? {
+        return repo.obtener(id)
+    }
 
     // Obtiene las sedes que tiene asignadas un usuario
-    suspend fun getSedesAsignadas(
-        usuarioId: Int
-    ): List<Sede> =
-        withContext(Dispatchers.IO) {
-
-            val asignaciones =
-                usuarioSedeDao.getAsignacionesPorUsuario(usuarioId)
-
-            asignaciones.mapNotNull { asignacion ->
-                sedeDao.getById(asignacion.sedeId)
-            }
-        }
+    suspend fun getSedesAsignadas(usuarioId: Int): List<Sede> {
+        // Primero se actualiza Room desde MySQL; si no hay conexión se usa la última copia
+        repo.refrescarSedesDeUsuario(usuarioId)
+        return repo.sedesDeUsuario(usuarioId).first()
+    }
 
     // CREATE / UPDATE
     // También guarda las sedes asignadas al usuario.
+    // Al editar, una contraseña vacía significa "no cambiarla".
     fun saveUser(
         id: Int,
         name: String,
@@ -82,67 +85,74 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch {
-
             try {
+                val user = User(
+                    id = id,
+                    name = name,
+                    email = email,
+                    password = password,
+                    tipoUsuarioId = tipoUsuarioId
+                )
 
-                withContext(Dispatchers.IO) {
+                val respuesta = if (id == 0) {
+                    repo.crear(user)
+                } else {
+                    repo.actualizar(id, user)
+                }
 
-                    val user = User(
-                        id = id,
-                        name = name,
-                        email = email,
-                        password = password,
-                        tipoUsuarioId = tipoUsuarioId
-                    )
+                if (!respuesta.isSuccessful) {
+                    _message.value = when (respuesta.code()) {
+                        400 -> "Los datos ingresados no son válidos"
+                        404 -> "Usuario no encontrado"
+                        409 -> "Ya existe un usuario con el email $email"
+                        else -> "Error del servidor: ${respuesta.code()}"
+                    }
+                    return@launch
+                }
 
-                    val usuarioId: Int
+                // Al crear, el servidor devuelve el id del nuevo usuario
+                val usuarioId = respuesta.body()?.id ?: id
 
+                val asignacion = repo.asignarSedes(usuarioId, sedesAsignadas.toList())
+
+                if (!asignacion.isSuccessful) {
+                    // Si el usuario era nuevo se elimina, para poder intentarlo otra vez
                     if (id == 0) {
-
-                        // CREATE
-                        // Room devuelve el ID generado del nuevo usuario.
-                        usuarioId =
-                            userDao.insertUser(user).toInt()
-
-                    } else {
-
-                        // UPDATE
-                        userDao.updateUser(user)
-                        usuarioId = id
+                        repo.eliminar(usuarioId)
                     }
-
-                    // Eliminamos las asignaciones anteriores.
-                    usuarioSedeDao.deletePorUsuario(usuarioId)
-
-                    // Guardamos las nuevas sedes seleccionadas.
-                    sedesAsignadas.forEach { sedeId ->
-
-                        usuarioSedeDao.insert(
-                            UsuarioSede(
-                                usuarioId = usuarioId,
-                                sedeId = sedeId
-                            )
-                        )
-                    }
+                    _message.value = "No se pudieron asignar las sedes. Intente nuevamente"
+                    return@launch
                 }
 
                 _message.value = null
                 onSuccess()
-
-            } catch (e: SQLiteConstraintException) {
-
-                _message.value =
-                    "Ya existe un usuario con el email $email"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SIN_CONEXION
             }
         }
     }
 
     // DELETE
     fun deleteUser(user: User) {
+        viewModelScope.launch {
+            try {
+                val respuesta = repo.eliminar(user.id)
 
-        viewModelScope.launch(Dispatchers.IO) {
-
-            userDao.deleteUser(user)
+                if (respuesta.isSuccessful) {
+                    _message.value = null
+                } else {
+                    _message.value = when (respuesta.code()) {
+                        404 -> "Usuario no encontrado"
+                        else -> "Error del servidor: ${respuesta.code()}"
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SIN_CONEXION
+            }
         }
     }
 }

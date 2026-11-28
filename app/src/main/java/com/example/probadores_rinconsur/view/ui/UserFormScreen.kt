@@ -106,7 +106,7 @@ fun UserFormScreen(
 
                 name = user.name
                 email = user.email
-                password = user.password
+                // El servidor nunca devuelve la contraseña: queda vacía
                 tipoUsuarioId = user.tipoUsuarioId
 
                 val asignadas =
@@ -195,7 +195,12 @@ fun UserFormScreen(
                     error = null
                 },
                 label = {
-                    Text("Contraseña")
+                    Text(
+                        if (userId > 0)
+                            "Contraseña (vacía = no cambiar)"
+                        else
+                            "Contraseña"
+                    )
                 },
                 singleLine = true,
                 visualTransformation =
@@ -382,7 +387,8 @@ fun UserFormScreen(
                                 "Email inválido"
                         }
 
-                        password.length < 4 -> {
+                        (userId == 0 || password.isNotEmpty()) &&
+                                password.length < 4 -> {
 
                             error =
                                 "La contraseña debe tener al menos 4 caracteres"

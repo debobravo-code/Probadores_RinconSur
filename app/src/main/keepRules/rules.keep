@@ -10,3 +10,9 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+
+# Retrofit + Gson leen los nombres de los campos por reflexión.
+# Sin estas reglas, la versión release (con R8) cambia los nombres y el JSON deja de coincidir.
+-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod
+-keep class com.example.probadores_rinconsur.repository.models.** { *; }
+-keep class com.example.probadores_rinconsur.repository.remote.dto.** { *; }

@@ -1,15 +1,18 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.data.AppDatabase
+import com.example.probadores_rinconsur.repository.RegistroRepository
+import com.example.probadores_rinconsur.repository.SedeRepository
 import com.example.probadores_rinconsur.repository.models.Probador
 import com.example.probadores_rinconsur.repository.models.RegistroOcupacion
 import com.example.probadores_rinconsur.repository.models.Sede
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Resumen de cuántas prendas se prueba la gente. distribucion[0] = usos con 1 prenda ... [3] = usos con 4. */
 data class ResumenPrendas(
@@ -19,16 +22,38 @@ data class ResumenPrendas(
     val distribucion: List<Int>
 )
 
-/** Solo lectura: calcula las estadísticas con los registros que guarda ProbadorViewModel al finalizar un uso. */
-class EstadisticasViewModel(application: Application) : AndroidViewModel(application) {
+/** Solo lectura: calcula las estadísticas con los registros (copia en Room de los que guarda el servidor). */
+class EstadisticasViewModel(
+    private val registroRepo: RegistroRepository = RegistroRepository(),
+    private val sedeRepo: SedeRepository = SedeRepository()
+) : ViewModel() {
 
-    private val db = AppDatabase.getDatabase(application)
+    val registros: StateFlow<List<RegistroOcupacion>> =
+        registroRepo.registros.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val registros: StateFlow<List<RegistroOcupacion>> = db.registroDao().getAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val sedes: StateFlow<List<Sede>> =
+        sedeRepo.sedes.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    val sedes: StateFlow<List<Sede>> = db.sedeDao().getAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
+    init {
+        cargarDatos()
+    }
+
+    /** Actualiza Room desde el servidor. Si no hay conexión se usan los datos guardados. */
+    fun cargarDatos() {
+        viewModelScope.launch {
+            val registrosOk = registroRepo.refrescar()
+            val sedesOk = sedeRepo.refrescar()
+
+            _message.value = if (registrosOk && sedesOk) {
+                null
+            } else {
+                "No se pudo actualizar desde el servidor. Se muestran los datos guardados"
+            }
+        }
+    }
 
     /** sedeId = 0 -> todas las sedes. Los registros sin prendas (cantidad 0) no cuentan. */
     fun resumen(registros: List<RegistroOcupacion>, sedeId: Int): ResumenPrendas {

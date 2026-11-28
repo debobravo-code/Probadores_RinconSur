@@ -61,6 +61,7 @@ import com.example.probadores_rinconsur.view.utils.navEnterTransition
 import com.example.probadores_rinconsur.view.utils.navExitTransition
 import com.example.probadores_rinconsur.view.utils.navPopEnterTransition
 import com.example.probadores_rinconsur.view.utils.navPopExitTransition
+import com.example.probadores_rinconsur.viewmodels.ClimaViewModel
 import com.example.probadores_rinconsur.viewmodels.EstadisticasViewModel
 import com.example.probadores_rinconsur.viewmodels.HistorialViewModel
 import com.example.probadores_rinconsur.viewmodels.LoginViewModel
@@ -143,7 +144,8 @@ fun AppNavigation(
     userViewModel: UserViewModel,
     tipoUsuarioViewModel: TipoUsuarioViewModel,
     sedeViewModel: SedeViewModel,
-    estadisticasViewModel: EstadisticasViewModel
+    estadisticasViewModel: EstadisticasViewModel,
+    climaViewModel: ClimaViewModel
 ) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -331,6 +333,7 @@ fun AppNavigation(
                 tipoUsuarioViewModel = tipoUsuarioViewModel,
                 sedeViewModel = sedeViewModel,
                 estadisticasViewModel = estadisticasViewModel,
+                climaViewModel = climaViewModel,
                 currentUserId = currentUserId,
                 currentUserName = loginState.loggedUser?.name ?: "",
                 esAdmin = esAdmin,
@@ -352,6 +355,7 @@ private fun AppNavHost(
     tipoUsuarioViewModel: TipoUsuarioViewModel,
     sedeViewModel: SedeViewModel,
     estadisticasViewModel: EstadisticasViewModel,
+    climaViewModel: ClimaViewModel,
     currentUserId: Int?,
     currentUserName: String,
     esAdmin: Boolean,
@@ -402,6 +406,7 @@ private fun AppNavHost(
             HomeScreen(
                 userName = currentUserName,
                 esAdmin = esAdmin,
+                climaViewModel = climaViewModel,
                 onNavigate = onNavigateTopLevel
             )
         }

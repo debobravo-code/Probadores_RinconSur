@@ -1,7 +1,6 @@
 package com.example.probadores_rinconsur.repository.models
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -19,15 +18,6 @@ enum class EstadoProbador(val etiqueta: String) {
 
 @Entity(
     tableName = "probadores",
-    foreignKeys = [
-        ForeignKey(
-            entity = Sede::class,
-            parentColumns = ["id"],
-            childColumns = ["sedeId"],
-            onDelete = ForeignKey.RESTRICT,
-            onUpdate = ForeignKey.CASCADE
-        )
-    ],
     indices = [
         Index(
             value = ["sedeId", "numero"],

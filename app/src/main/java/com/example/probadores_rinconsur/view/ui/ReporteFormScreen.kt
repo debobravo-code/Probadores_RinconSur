@@ -61,6 +61,11 @@ fun ReporteFormScreen(
     var loaded by rememberSaveable { mutableStateOf(false) }
     var visible by rememberSaveable { mutableStateOf(false) }
 
+    // Pide los probadores actualizados al servidor
+    LaunchedEffect(Unit) {
+        viewModel.cargarDatos()
+    }
+
     // Carga el reporte a editar mediante una corrutina (función suspend del ViewModel)
     LaunchedEffect(reporteId) {
         if (reporteId > 0 && !loaded) {
@@ -185,8 +190,7 @@ fun ReporteFormScreen(
                                 reporteId,
                                 probadorId,
                                 descripcion.trim(),
-                                imageUri,
-                                fechaMillis
+                                imageUri
                             )
                             onDone()
                         }

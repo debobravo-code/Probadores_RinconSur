@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.example.probadores_rinconsur.navegations.AppNavigation
 import com.example.probadores_rinconsur.view.theme.AppTheme
+import com.example.probadores_rinconsur.viewmodels.ClimaViewModel
 import com.example.probadores_rinconsur.viewmodels.EstadisticasViewModel
 import com.example.probadores_rinconsur.viewmodels.HistorialViewModel
 import com.example.probadores_rinconsur.viewmodels.LoginViewModel
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
     private val tipoUsuarioViewModel: TipoUsuarioViewModel by viewModels()
     private val sedeViewModel: SedeViewModel by viewModels()
     private val estadisticasViewModel: EstadisticasViewModel by viewModels()
+    private val climaViewModel: ClimaViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,7 +37,8 @@ class MainActivity : ComponentActivity() {
             AppTheme {
                 AppNavigation(
                     loginViewModel, probadorViewModel, reporteViewModel, historialViewModel,
-                    userViewModel, tipoUsuarioViewModel, sedeViewModel, estadisticasViewModel
+                    userViewModel, tipoUsuarioViewModel, sedeViewModel, estadisticasViewModel,
+                    climaViewModel
                 )
             }
         }

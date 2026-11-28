@@ -1,31 +1,52 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import android.database.sqlite.SQLiteConstraintException
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.data.AppDatabase
+import com.example.probadores_rinconsur.repository.TipoUsuarioRepository
 import com.example.probadores_rinconsur.repository.models.TipoUsuario
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class TipoUsuarioViewModel(application: Application) : AndroidViewModel(application) {
+private const val SIN_CONEXION = "No se pudo conectar con el servidor"
 
-    private val dao = AppDatabase.getDatabase(application).tipoUsuarioDao()
+class TipoUsuarioViewModel(
+    private val repo: TipoUsuarioRepository = TipoUsuarioRepository()
+) : ViewModel() {
 
-    val tipos: StateFlow<List<TipoUsuario>> = dao.getAll()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // La lista viene de Room (copia local de MySQL)
+    val tipos: StateFlow<List<TipoUsuario>> =
+        repo.tipos.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
-    fun clearMessage() { _message.value = null }
+    init {
+        cargarTipos()
+    }
+
+    fun clearMessage() {
+        _message.value = null
+    }
+
+    /** Vuelve a pedir los tipos de usuario al servidor. */
+    fun cargarTipos() {
+        viewModelScope.launch {
+            actualizarListado()
+        }
+    }
+
+    private suspend fun actualizarListado() {
+        // Si no hay conexión, Room conserva la última copia y se sigue viendo
+        if (!repo.refrescar()) {
+            _message.value =
+                "No se pudo actualizar desde el servidor. Se muestran los datos guardados"
+        }
+    }
 
     /** CREATE (id = 0) o UPDATE (id > 0). Devuelve el resultado por onSuccess. */
     fun save(id: Int, nombre: String, onSuccess: () -> Unit = {}) {
@@ -35,7 +56,7 @@ class TipoUsuarioViewModel(application: Application) : AndroidViewModel(applicat
             return
         }
 
-        // Validación: TipoUsuario.tipoUsuario solo admite letras (mayúsculas/minúsculas) y espacios entre palabras
+        // Solo letras (mayúsculas/minúsculas) y un espacio entre palabras
         if (!Validaciones.esSoloLetras(valor)) {
             _message.value = "El tipo solo puede contener letras y un espacio entre palabras (sin números ni símbolos)"
             return
@@ -43,25 +64,53 @@ class TipoUsuarioViewModel(application: Application) : AndroidViewModel(applicat
 
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    val tipo = TipoUsuario(id = id, tipoUsuario = valor)
-                    if (id == 0) dao.insert(tipo) else dao.update(tipo)
+                val tipo = TipoUsuario(id = id, tipoUsuario = valor)
+
+                val respuesta = if (id == 0) {
+                    repo.crear(tipo)
+                } else {
+                    repo.actualizar(id, tipo)
                 }
-                _message.value = null
-                onSuccess()
-            } catch (e: SQLiteConstraintException) {
-                _message.value = "El tipo \"$valor\" ya existe"
+
+                if (respuesta.isSuccessful) {
+                    _message.value = null
+                    onSuccess()
+                } else {
+                    _message.value = when (respuesta.code()) {
+                        403 -> "El tipo Administrador no se puede modificar"
+                        404 -> "Tipo de usuario no encontrado"
+                        409 -> "El tipo \"$valor\" ya existe"
+                        else -> "Error del servidor: ${respuesta.code()}"
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SIN_CONEXION
             }
         }
     }
 
-    /** DELETE. Falla si algún usuario usa el tipo (FK RESTRICT). */
+    /** DELETE. El servidor lo rechaza si algún usuario usa el tipo. */
     fun delete(tipo: TipoUsuario) {
         viewModelScope.launch {
             try {
-                withContext(Dispatchers.IO) { dao.delete(tipo) }
-            } catch (e: SQLiteConstraintException) {
-                _message.value = "No se puede eliminar \"${tipo.tipoUsuario}\": hay usuarios con ese tipo"
+                val respuesta = repo.eliminar(tipo.id)
+
+                if (respuesta.isSuccessful) {
+                    _message.value = null
+                } else {
+                    _message.value = when (respuesta.code()) {
+                        403 -> "El tipo Administrador no se puede eliminar"
+                        404 -> "Tipo de usuario no encontrado"
+                        409 -> "No se puede eliminar \"${tipo.tipoUsuario}\": hay usuarios con ese tipo"
+                        else -> "Error del servidor: ${respuesta.code()}"
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SIN_CONEXION
             }
         }
     }

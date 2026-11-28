@@ -55,6 +55,11 @@ fun HistorialScreen(
     viewModel: HistorialViewModel
 ) {
 
+    // Pide el historial actualizado al servidor al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarDatos()
+    }
+
     // Consultar únicamente registros permitidos
     val registros by
     viewModel.registrosPermitidos.collectAsStateWithLifecycle()

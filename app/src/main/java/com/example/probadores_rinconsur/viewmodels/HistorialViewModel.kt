@@ -1,24 +1,18 @@
-
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import android.util.Log
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.data.AppDatabase
+import com.example.probadores_rinconsur.repository.RegistroRepository
+import com.example.probadores_rinconsur.repository.SedeRepository
+import com.example.probadores_rinconsur.repository.UserRepository
 import com.example.probadores_rinconsur.repository.models.RegistroOcupacion
 import com.example.probadores_rinconsur.repository.models.Sede
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.example.probadores_rinconsur.repository.remote.dto.RegistroEdicionRequest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /**
@@ -30,258 +24,138 @@ import kotlinx.coroutines.launch
  *
  * Personal:
  * - Consulta solamente sus sedes asignadas.
- * - Edita solamente registros autorizados.
+ * - Edita solamente registros de sus sedes.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
 class HistorialViewModel(
-    application: Application
-) : AndroidViewModel(application) {
+    private val registroRepo: RegistroRepository = RegistroRepository(),
+    private val sedeRepo: SedeRepository = SedeRepository(),
+    private val userRepo: UserRepository = UserRepository()
+) : ViewModel() {
 
-    private val db = AppDatabase.getDatabase(application)
+    // Usuario que inició sesión (se configura desde navegations.kt)
+    private var usuarioId: Int? = null
+    private var esAdmin: Boolean = false
 
-    private val registroDao = db.registroDao()
-    private val usuarioSedeDao = db.usuarioSedeDao()
+    private val _sedesPermitidas = MutableStateFlow<List<Sede>>(emptyList())
 
-    private val TAG = "HistorialPermisos"
+    /** Sedes que el usuario puede consultar. */
+    val sedesPermitidas: StateFlow<List<Sede>> = _sedesPermitidas.asStateFlow()
 
-    /**
-     * Usuario que inició sesión.
-     */
-    private data class Sesion(
-        val usuarioId: Int?,
-        val esAdmin: Boolean
-    )
+    private val _registrosPermitidos = MutableStateFlow<List<RegistroOcupacion>>(emptyList())
 
-    private val sesion = MutableStateFlow(
-        Sesion(
-            usuarioId = null,
-            esAdmin = false
-        )
-    )
+    /** Registros que pertenecen a las sedes permitidas. Las pantallas usan este flujo. */
+    val registrosPermitidos: StateFlow<List<RegistroOcupacion>> = _registrosPermitidos.asStateFlow()
 
-    /**
-     * Registros generales.
-     *
-     * Se conservan por compatibilidad.
-     * Las pantallas deben usar registrosPermitidos.
-     */
-    val registros: StateFlow<List<RegistroOcupacion>> =
-        registroDao.getAll()
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                emptyList()
-            )
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
 
-    /**
-     * Sedes generales.
-     *
-     * Se conservan por compatibilidad.
-     * Las pantallas deben usar sedesPermitidas.
-     */
-    val sedes: StateFlow<List<Sede>> =
-        db.sedeDao().getAll()
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                emptyList()
-            )
-
-    /**
-     * Obtener las sedes según la sesión.
-     *
-     * Se utiliza un único flujo compartido.
-     */
-    val sedesPermitidas: StateFlow<List<Sede>> =
-        sesion
-            .flatMapLatest { usuario ->
-
-                Log.d(
-                    TAG,
-                    "Consultando usuario=${usuario.usuarioId}, " +
-                            "administrador=${usuario.esAdmin}"
-                )
-
-                when {
-
-                    usuario.usuarioId == null -> {
-                        flowOf(emptyList())
-                    }
-
-                    usuario.esAdmin -> {
-                        db.sedeDao().getAll()
-                    }
-
-                    else -> {
-                        usuarioSedeDao.getSedesPorUsuario(
-                            usuario.usuarioId
-                        )
-                    }
-                }
-            }
-            .onEach { lista ->
-
-                Log.d(
-                    TAG,
-                    "Sedes autorizadas: " +
-                            lista.map { "${it.id}: ${it.nombre}" }
-                )
-            }
-            .stateIn(
-                viewModelScope,
-                SharingStarted.Eagerly,
-                emptyList()
-            )
-
-    /**
-     * Mostrar solamente los registros
-     * correspondientes a las sedes permitidas.
-     */
-    val registrosPermitidos: StateFlow<List<RegistroOcupacion>> =
-        combine(
-            sesion,
-            sedesPermitidas,
-            registroDao.getAll()
-        ) { usuario, listaSedes, listaRegistros ->
-
-            if (usuario.usuarioId == null) {
-
-                emptyList()
-
-            } else {
-
-                val idsPermitidos =
-                    listaSedes.map { it.id }.toSet()
-
-                listaRegistros.filter {
-                    it.sedeId in idsPermitidos
-                }
-            }
-        }
-            .onEach { lista ->
-
-                Log.d(
-                    TAG,
-                    "Registros visibles: ${lista.size}"
-                )
-            }
-            .stateIn(
-                viewModelScope,
-                SharingStarted.WhileSubscribed(5000),
-                emptyList()
-            )
+    fun clearMessage() {
+        _message.value = null
+    }
 
     /**
      * Configurar el usuario conectado.
-     *
-     * Se llama desde navegations.kt.
+     * Se llama desde navegations.kt al iniciar o cerrar sesión.
      */
-    fun configurarUsuario(
-        usuarioId: Int?,
-        esAdmin: Boolean
-    ) {
+    fun configurarUsuario(usuarioId: Int?, esAdmin: Boolean) {
+        this.usuarioId = usuarioId
+        this.esAdmin = usuarioId != null && esAdmin
+        cargarDatos()
+    }
 
-        Log.d(
-            TAG,
-            "Configurando usuario=$usuarioId, admin=$esAdmin"
-        )
+    /** Actualiza Room desde el servidor y luego lee de Room según el usuario conectado. */
+    fun cargarDatos() {
+        viewModelScope.launch {
+            actualizarListados()
+        }
+    }
 
-        sesion.value = Sesion(
-            usuarioId = usuarioId,
-            esAdmin = usuarioId != null && esAdmin
-        )
+    private suspend fun actualizarListados() {
+        val usuarioAlSolicitar = usuarioId
+
+        // Sin sesión no se muestra nada
+        if (usuarioAlSolicitar == null) {
+            _sedesPermitidas.value = emptyList()
+            _registrosPermitidos.value = emptyList()
+            return
+        }
+
+        // Primero se actualiza la copia local (Room) con lo que hay en MySQL
+        val sedesOk = sedeRepo.refrescar()
+        val registrosOk = registroRepo.refrescar()
+        val asignadasOk = esAdmin || userRepo.refrescarSedesDeUsuario(usuarioAlSolicitar)
+
+        if (!sedesOk || !registrosOk || !asignadasOk) {
+            _message.value =
+                "No se pudo actualizar desde el servidor. Se muestran los datos guardados"
+        }
+
+        // Después se lee siempre desde Room (funciona también sin conexión)
+        val sedes = if (esAdmin) {
+            sedeRepo.sedes.first()
+        } else {
+            userRepo.sedesDeUsuario(usuarioAlSolicitar).first()
+        }
+        val registros = registroRepo.registros.first()
+
+        // Si cambió el usuario mientras se esperaba la respuesta, se descarta
+        if (usuarioAlSolicitar != usuarioId) return
+
+        val idsPermitidos = sedes.map { it.id }.toSet()
+
+        _sedesPermitidas.value = sedes.sortedBy { it.id }
+        _registrosPermitidos.value = registros.filter { it.sedeId in idsPermitidos }
     }
 
     /**
      * Actualizar un registro existente.
      *
-     * Solo permite cambiar:
-     * - Cantidad de prendas.
-     * - Prenda olvidada.
-     * - Observación.
-     *
+     * Solo permite cambiar cantidad de prendas, prenda olvidada y observación.
      * Conserva sede, probador y horarios.
      */
-    fun actualizarRegistro(
-        registro: RegistroOcupacion
-    ) {
+    fun actualizarRegistro(registro: RegistroOcupacion) {
+        // Sin sesión no se puede editar
+        if (usuarioId == null) return
 
-        val usuarioAlSolicitar = sesion.value
+        if (registro.cantidadPrendas < 0) return
 
-        if (usuarioAlSolicitar.usuarioId == null) {
+        // El registro original debe estar entre los registros permitidos
+        val original = _registrosPermitidos.value
+            .firstOrNull { it.id == registro.id } ?: return
 
-            Log.w(TAG, "Edición rechazada: sin sesión")
-            return
-        }
+        // No se permite cambiar la sede
+        if (original.sedeId != registro.sedeId) return
 
-        if (registro.cantidadPrendas < 0) {
-            return
-        }
+        // El usuario debe tener permiso sobre la sede del registro
+        if (_sedesPermitidas.value.none { it.id == original.sedeId }) return
 
-        viewModelScope.launch(Dispatchers.IO) {
-
-            if (sesion.value != usuarioAlSolicitar) {
-                return@launch
-            }
-
-            // Obtener el registro original
-            val original = registroDao.getAll()
-                .first()
-                .firstOrNull { it.id == registro.id }
-                ?: return@launch
-
-            // Consultar permisos actuales
-            val autorizado =
-                if (usuarioAlSolicitar.esAdmin) {
-
-                    db.sedeDao().getAll()
-                        .first()
-                        .any { it.id == original.sedeId }
-
-                } else {
-
-                    usuarioSedeDao
-                        .getAsignacionesPorUsuario(
-                            usuarioAlSolicitar.usuarioId
-                        )
-                        .any {
-                            it.sedeId == original.sedeId
-                        }
-                }
-
-            if (!autorizado) {
-
-                Log.w(
-                    TAG,
-                    "Edición rechazada: usuario sin permiso " +
-                            "para sede ${original.sedeId}"
+        viewModelScope.launch {
+            try {
+                val respuesta = registroRepo.actualizar(
+                    registro.id,
+                    RegistroEdicionRequest(
+                        cantidadPrendas = registro.cantidadPrendas,
+                        prendaOlvidada = registro.prendaOlvidada,
+                        observacion = registro.observacion.trim()
+                    )
                 )
 
-                return@launch
+                if (respuesta.isSuccessful) {
+                    _message.value = null
+                    // El repositorio ya actualizó Room: se vuelve a leer la lista
+                    actualizarListados()
+                } else {
+                    _message.value = when (respuesta.code()) {
+                        400 -> "Los datos del registro no son válidos"
+                        404 -> "Registro no encontrado"
+                        else -> "Error del servidor: ${respuesta.code()}"
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = "No se pudo conectar con el servidor"
             }
-
-            // No permitir cambiar la sede
-            if (original.sedeId != registro.sedeId) {
-                return@launch
-            }
-
-            if (sesion.value != usuarioAlSolicitar) {
-                return@launch
-            }
-
-            // Actualizar solamente campos editables
-            val actualizado = original.copy(
-                cantidadPrendas = registro.cantidadPrendas,
-                prendaOlvidada = registro.prendaOlvidada,
-                observacion = registro.observacion.trim()
-            )
-
-            registroDao.update(actualizado)
-
-            Log.d(
-                TAG,
-                "Registro ${original.id} actualizado correctamente"
-            )
         }
     }
 }

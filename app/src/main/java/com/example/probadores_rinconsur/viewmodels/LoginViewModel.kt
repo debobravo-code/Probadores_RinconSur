@@ -1,10 +1,9 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.probadores_rinconsur.repository.UserRepository
 import com.example.probadores_rinconsur.repository.models.User
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
 import com.example.probadores_rinconsur.repository.remote.dto.LoginRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,9 +20,9 @@ data class LoginUiState(
     val loggedUser: User? = null
 )
 
-class LoginViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val apiService = RetrofitClient.apiService
+class LoginViewModel(
+    private val repo: UserRepository = UserRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -52,7 +51,7 @@ class LoginViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             try {
-                val response = apiService.login(
+                val response = repo.login(
                     LoginRequest(
                         email = state.email.trim(),
                         password = state.password

@@ -1,23 +1,29 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.probadores_rinconsur.repository.SedeRepository
 import com.example.probadores_rinconsur.repository.models.Sede
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
 import com.example.probadores_rinconsur.repository.remote.dto.SedeRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class SedeViewModel(application: Application) : AndroidViewModel(application) {
+/**
+ * Sedes. La lista sale de Room (copia local) y el repositorio la mantiene
+ * igual a MySQL: cada cambio se guarda en el microservicio y luego se actualiza Room.
+ */
+class SedeViewModel(
+    private val repo: SedeRepository = SedeRepository()
+) : ViewModel() {
 
-    private val apiService = RetrofitClient.apiService
-
-    private val _sedes = MutableStateFlow<List<Sede>>(emptyList())
-    val sedes: StateFlow<List<Sede>> = _sedes.asStateFlow()
+    // La pantalla observa Room; cuando Room cambia, la pantalla se actualiza sola
+    val sedes: StateFlow<List<Sede>> =
+        repo.sedes.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -37,24 +43,16 @@ class SedeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun actualizarListado() {
-        try {
-            val response = apiService.listarSedes()
-
-            if (response.isSuccessful) {
-                _sedes.value = response.body().orEmpty()
-            } else {
-                _message.value = "No se pudieron cargar las sedes"
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            _message.value = "No se pudo conectar con el servidor"
+        // Si no hay conexión, Room conserva la última copia y se sigue viendo
+        if (!repo.refrescar()) {
+            _message.value =
+                "No se pudo actualizar desde el servidor. Se muestran los datos guardados"
         }
     }
 
     suspend fun getCantidadProbadores(sedeId: Int): Int {
         return try {
-            val response = apiService.listarProbadoresPorSede(sedeId)
+            val response = repo.probadoresDeSede(sedeId)
 
             if (response.isSuccessful && response.body() != null) {
                 response.body()!!.size
@@ -134,15 +132,14 @@ class SedeViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 val response = if (id == 0) {
-                    apiService.crearSede(request)
+                    repo.crear(request)
                 } else {
-                    apiService.actualizarSede(id, request)
+                    repo.actualizar(id, request)
                 }
 
                 if (response.isSuccessful) {
                     _message.value = null
                     onSuccess()
-                    actualizarListado()
                 } else {
                     _message.value = when (response.code()) {
                         400 -> "Los datos ingresados no son validos"
@@ -163,11 +160,10 @@ class SedeViewModel(application: Application) : AndroidViewModel(application) {
     fun delete(sede: Sede) {
         viewModelScope.launch {
             try {
-                val response = apiService.eliminarSede(sede.id)
+                val response = repo.eliminar(sede.id)
 
                 if (response.isSuccessful) {
                     _message.value = null
-                    actualizarListado()
                 } else {
                     _message.value = when (response.code()) {
                         404 -> "Sede no encontrada"

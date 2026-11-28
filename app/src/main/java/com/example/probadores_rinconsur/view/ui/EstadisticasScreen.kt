@@ -18,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,6 +38,11 @@ import com.example.probadores_rinconsur.viewmodels.ResumenPrendas
 /** Estadísticas de prendas por persona. Solo el Administrador ve esta pantalla (menú soloAdmin). */
 @Composable
 fun EstadisticasScreen(viewModel: EstadisticasViewModel) {
+    // Pide los registros actualizados al servidor al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarDatos()
+    }
+
     val registros by viewModel.registros.collectAsStateWithLifecycle()
     val sedes by viewModel.sedes.collectAsStateWithLifecycle()
     var sedeId by rememberSaveable { mutableIntStateOf(0) }

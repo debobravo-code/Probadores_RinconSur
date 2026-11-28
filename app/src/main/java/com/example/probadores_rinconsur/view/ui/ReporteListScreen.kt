@@ -25,9 +25,12 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.probadores_rinconsur.repository.models.ReportePrenda
+import com.example.probadores_rinconsur.repository.remote.RetrofitClient
 import com.example.probadores_rinconsur.view.utils.Formato
 import com.example.probadores_rinconsur.viewmodels.ReporteViewModel
 
@@ -55,6 +59,22 @@ fun ReporteListScreen(
     val probadorPorId = probadores.associateBy { it.id }
     val sedePorId = sedes.associate { it.id to it.nombre }
     var toDelete by remember { mutableStateOf<ReportePrenda?>(null) }
+
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+
+    // Pide los datos actualizados al servidor al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarDatos()
+    }
+
+    // Muestra los avisos de error (ej. sin conexión)
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (reportes.isEmpty()) {
@@ -85,7 +105,7 @@ fun ReporteListScreen(
                         ) {
                             if (reporte.fotoUri != null) {
                                 AsyncImage(
-                                    model = reporte.fotoUri,
+                                    model = RetrofitClient.urlFoto(reporte.fotoUri),
                                     contentDescription = "Foto de la prenda",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier
@@ -142,6 +162,11 @@ fun ReporteListScreen(
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbar,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
 
         FloatingActionButton(
             onClick = onAdd,

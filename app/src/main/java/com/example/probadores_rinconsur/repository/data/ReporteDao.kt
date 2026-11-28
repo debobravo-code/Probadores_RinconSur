@@ -1,32 +1,40 @@
 package com.example.probadores_rinconsur.repository.data
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
+import androidx.room.Transaction
 import com.example.probadores_rinconsur.repository.models.ReportePrenda
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * Copia local (Room) de la tabla "reportes_prenda" de MySQL.
+ * Los ids son los mismos que en MySQL, así que no se duplican registros.
+ */
 @Dao
-interface ReporteDao {
-    // READ (reactivo con Flow)
+abstract class ReporteDao {
+
+    // Lo que ve la pantalla: siempre se lee desde Room
     @Query("SELECT * FROM reportes_prenda ORDER BY fechaMillis DESC")
-    fun getAllReportes(): Flow<List<ReportePrenda>>
+    abstract fun getAll(): Flow<List<ReportePrenda>>
 
     @Query("SELECT * FROM reportes_prenda WHERE id = :id")
-    suspend fun getReporteById(id: Int): ReportePrenda?
+    abstract suspend fun getById(id: Int): ReportePrenda?
 
-    // CREATE
+    @Query("DELETE FROM reportes_prenda")
+    abstract suspend fun deleteAll()
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertReporte(reporte: ReportePrenda): Long
+    abstract suspend fun insertAll(lista: List<ReportePrenda>)
 
-    // UPDATE
-    @Update
-    suspend fun updateReporte(reporte: ReportePrenda)
-
-    // DELETE
-    @Delete
-    suspend fun deleteReporte(reporte: ReportePrenda)
+    /**
+     * Deja la copia local igual a lo que hay en MySQL.
+     * Va en una sola transacción: la pantalla nunca ve la tabla a medias.
+     */
+    @Transaction
+    open suspend fun reemplazarTodo(lista: List<ReportePrenda>) {
+        deleteAll()
+        insertAll(lista)
+    }
 }

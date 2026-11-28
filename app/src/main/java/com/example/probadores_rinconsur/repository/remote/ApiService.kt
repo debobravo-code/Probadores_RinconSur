@@ -114,6 +114,19 @@ interface ApiService {
         @Path("id") id: Int
     ): Response<Unit>
 
+    // SEDES ASIGNADAS A UN USUARIO
+
+    @GET("api/users/{id}/sedes")
+    suspend fun listarSedesDeUsuario(
+        @Path("id") id: Int
+    ): Response<List<Sede>>
+
+    @PUT("api/users/{id}/sedes")
+    suspend fun asignarSedes(
+        @Path("id") id: Int,
+        @Body sedesIds: List<Int>
+    ): Response<List<Sede>>
+
     // TIPOS DE USUARIO
 
     @GET("api/tipos-usuario")
@@ -173,6 +186,12 @@ interface ApiService {
         @Query("desde") desde: Long,
         @Query("hasta") hasta: Long
     ): Response<List<RegistroOcupacion>>
+
+    @PUT("api/registros/{id}")
+    suspend fun actualizarRegistro(
+        @Path("id") id: Int,
+        @Body request: RegistroEdicionRequest
+    ): Response<RegistroOcupacion>
 
     // REPORTES DE PRENDAS
 

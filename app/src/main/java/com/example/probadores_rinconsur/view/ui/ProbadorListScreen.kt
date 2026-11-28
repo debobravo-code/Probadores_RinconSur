@@ -131,11 +131,16 @@ fun ProbadorListScreen(
         mutableLongStateOf(System.currentTimeMillis())
     }
 
-    // Actualiza los minutos de ocupación.
+    // Pide los datos al servidor al entrar y cada 30 segundos,
+    // así se ven los cambios hechos desde otro dispositivo.
+    // También actualiza los minutos de ocupación.
     LaunchedEffect(Unit) {
+        viewModel.cargarDatos()
+
         while (true) {
             delay(30_000)
             ahora = System.currentTimeMillis()
+            viewModel.cargarDatos()
         }
     }
 

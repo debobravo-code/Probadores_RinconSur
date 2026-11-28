@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.probadores_rinconsur.repository.remote.RetrofitClient
 
 /** Muestra la foto (o un botón para tomarla). Al tocar abre la cámara. */
 @Composable
@@ -36,7 +37,7 @@ fun PhotoBox(imageUri: String?, circle: Boolean, onTakePhoto: () -> Unit) {
     ) {
         if (imageUri != null) {
             AsyncImage(
-                model = imageUri,
+                model = RetrofitClient.urlFoto(imageUri),
                 contentDescription = "Foto",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

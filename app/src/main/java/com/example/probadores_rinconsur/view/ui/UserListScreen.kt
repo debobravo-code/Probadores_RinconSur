@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,12 @@ fun UserListScreen(
     onAdd: () -> Unit,
     onEdit: (Int) -> Unit
 ) {
+    // Pide los usuarios y tipos actualizados al servidor al entrar a la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.cargarUsuarios()
+        tipoUsuarioViewModel.cargarTipos()
+    }
+
     val users by viewModel.users.collectAsStateWithLifecycle()
     val tipos by tipoUsuarioViewModel.tipos.collectAsStateWithLifecycle()
     val nombreTipo = tipos.associate { it.id to it.tipoUsuario }
