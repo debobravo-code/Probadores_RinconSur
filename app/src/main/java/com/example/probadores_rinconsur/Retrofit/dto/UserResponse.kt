@@ -1,4 +1,4 @@
-package com.example.probadores_rinconsur.repository.remote.dto
+package com.example.probadores_rinconsur.Retrofit.dto
 
 data class UserResponse(
     val id: Int,

@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.probadores_rinconsur.repository.models.ReportePrenda
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
 import com.example.probadores_rinconsur.view.utils.Formato
 import com.example.probadores_rinconsur.viewmodels.ReporteViewModel
 

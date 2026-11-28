@@ -1,6 +1,6 @@
-package com.example.probadores_rinconsur.repository.remote
+package com.example.probadores_rinconsur.Retrofit
 
-import com.example.probadores_rinconsur.repository.remote.dto.ClimaResponse
+import com.example.probadores_rinconsur.Retrofit.dto.ClimaResponse
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Query

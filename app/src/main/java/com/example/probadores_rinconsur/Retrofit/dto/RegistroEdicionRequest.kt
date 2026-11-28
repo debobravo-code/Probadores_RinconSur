@@ -1,4 +1,4 @@
-package com.example.probadores_rinconsur.repository.remote.dto
+package com.example.probadores_rinconsur.Retrofit.dto
 
 /** Datos que se pueden corregir en un registro del historial. */
 data class RegistroEdicionRequest(

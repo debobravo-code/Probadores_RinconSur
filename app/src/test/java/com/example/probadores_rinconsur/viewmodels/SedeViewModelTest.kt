@@ -1,6 +1,6 @@
 package com.example.probadores_rinconsur.viewmodels
 
-import com.example.probadores_rinconsur.repository.SedeRepository
+import com.example.probadores_rinconsur.repository.remote.SedeRepository
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery

@@ -2,7 +2,9 @@ package com.example.probadores_rinconsur.repository
 
 import com.example.probadores_rinconsur.repository.data.SedeDao
 import com.example.probadores_rinconsur.repository.models.Sede
-import com.example.probadores_rinconsur.repository.remote.ApiService
+import com.example.probadores_rinconsur.Retrofit.SedeApiService
+import com.example.probadores_rinconsur.Retrofit.ProbadorApiService
+import com.example.probadores_rinconsur.repository.remote.SedeRepository
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.mockk.coEvery
@@ -25,14 +27,14 @@ class SedeRepositoryTest : StringSpec({
         )
 
         // 1. Servidor y Room simulados
-        val api = mockk<ApiService>()
+        val api = mockk<SedeApiService>()
         val dao = mockk<SedeDao>()
         every { dao.getAll() } returns flowOf(sedes)
         coEvery { api.listarSedes() } returns Response.success(sedes)
         coEvery { dao.reemplazarTodo(sedes) } returns Unit
 
         // 2. Repositorio real, conectado a los simulados
-        val repository = SedeRepository(api, dao)
+        val repository = SedeRepository(api, dao, mockk<ProbadorApiService>())
 
         // 3. Se actualiza la copia local desde el servidor
         val resultado = repository.refrescar()

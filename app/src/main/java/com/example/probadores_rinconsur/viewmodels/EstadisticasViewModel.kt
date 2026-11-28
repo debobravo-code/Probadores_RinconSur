@@ -2,8 +2,8 @@ package com.example.probadores_rinconsur.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.RegistroRepository
-import com.example.probadores_rinconsur.repository.SedeRepository
+import com.example.probadores_rinconsur.repository.remote.RegistroRepository
+import com.example.probadores_rinconsur.repository.remote.SedeRepository
 import com.example.probadores_rinconsur.repository.models.Probador
 import com.example.probadores_rinconsur.repository.models.RegistroOcupacion
 import com.example.probadores_rinconsur.repository.models.Sede

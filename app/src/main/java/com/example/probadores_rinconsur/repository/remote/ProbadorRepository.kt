@@ -1,12 +1,12 @@
-package com.example.probadores_rinconsur.repository
+package com.example.probadores_rinconsur.repository.remote
 
 import com.example.probadores_rinconsur.repository.data.ProbadorDao
 import com.example.probadores_rinconsur.repository.models.EstadoProbador
 import com.example.probadores_rinconsur.repository.models.Probador
-import com.example.probadores_rinconsur.repository.remote.ApiService
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
-import com.example.probadores_rinconsur.repository.remote.dto.EstadoProbadorRequest
-import com.example.probadores_rinconsur.repository.remote.dto.OcupacionRequest
+import com.example.probadores_rinconsur.Retrofit.ProbadorApiService
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.dto.EstadoProbadorRequest
+import com.example.probadores_rinconsur.Retrofit.dto.OcupacionRequest
 import com.example.probadores_rinconsur.RinconSurApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +14,7 @@ import retrofit2.Response
 
 /** Probadores: MySQL por Retrofit + copia local en Room (misma idea que SedeRepository). */
 class ProbadorRepository(
-    private val api: ApiService = RetrofitClient.apiService,
+    private val api: ProbadorApiService = RetrofitClient.probadorApiService,
     private val dao: ProbadorDao = RinconSurApp.database.probadorDao()
 ) {
 

@@ -2,7 +2,7 @@ package com.example.probadores_rinconsur.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.UserRepository
+import com.example.probadores_rinconsur.repository.remote.UserRepository
 import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.repository.models.User
 import kotlinx.coroutines.CancellationException

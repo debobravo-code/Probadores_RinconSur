@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.probadores_rinconsur.repository.models.EstadoProbador
 import com.example.probadores_rinconsur.repository.models.Probador
-import com.example.probadores_rinconsur.repository.ProbadorRepository
-import com.example.probadores_rinconsur.repository.SedeRepository
+import com.example.probadores_rinconsur.repository.remote.ProbadorRepository
+import com.example.probadores_rinconsur.repository.remote.SedeRepository
 import com.example.probadores_rinconsur.repository.models.Sede
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

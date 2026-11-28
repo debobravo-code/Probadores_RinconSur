@@ -1,13 +1,14 @@
-package com.example.probadores_rinconsur.repository
+package com.example.probadores_rinconsur.repository.remote
 
 import com.example.probadores_rinconsur.repository.data.UserDao
 import com.example.probadores_rinconsur.repository.data.UsuarioSedeDao
 import com.example.probadores_rinconsur.repository.models.Sede
 import com.example.probadores_rinconsur.repository.models.User
-import com.example.probadores_rinconsur.repository.remote.ApiService
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
-import com.example.probadores_rinconsur.repository.remote.dto.LoginRequest
-import com.example.probadores_rinconsur.repository.remote.dto.UserResponse
+import com.example.probadores_rinconsur.Retrofit.UserApiService
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.AuthApiService
+import com.example.probadores_rinconsur.Retrofit.dto.LoginRequest
+import com.example.probadores_rinconsur.Retrofit.dto.UserResponse
 import com.example.probadores_rinconsur.RinconSurApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -27,14 +28,15 @@ private fun UserResponse.aUser() = User(
  * El login siempre se valida en el servidor (la clave está encriptada con BCrypt).
  */
 class UserRepository(
-    private val api: ApiService = RetrofitClient.apiService,
+    private val api: UserApiService = RetrofitClient.userApiService,
     private val dao: UserDao = RinconSurApp.database.userDao(),
-    private val usuarioSedeDao: UsuarioSedeDao = RinconSurApp.database.usuarioSedeDao()
+    private val usuarioSedeDao: UsuarioSedeDao = RinconSurApp.database.usuarioSedeDao(),
+    private val authApi: AuthApiService = RetrofitClient.authApiService
 ) {
 
     val users: Flow<List<User>> = dao.getAll()
 
-    suspend fun login(request: LoginRequest): Response<UserResponse> = api.login(request)
+    suspend fun login(request: LoginRequest): Response<UserResponse> = authApi.login(request)
 
     suspend fun refrescar(): Boolean {
         return try {

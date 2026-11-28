@@ -1,11 +1,12 @@
-package com.example.probadores_rinconsur.repository
+package com.example.probadores_rinconsur.repository.remote
 
 import com.example.probadores_rinconsur.repository.data.SedeDao
 import com.example.probadores_rinconsur.repository.models.Probador
 import com.example.probadores_rinconsur.repository.models.Sede
-import com.example.probadores_rinconsur.repository.remote.ApiService
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
-import com.example.probadores_rinconsur.repository.remote.dto.SedeRequest
+import com.example.probadores_rinconsur.Retrofit.SedeApiService
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.ProbadorApiService
+import com.example.probadores_rinconsur.Retrofit.dto.SedeRequest
 import com.example.probadores_rinconsur.RinconSurApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -19,8 +20,9 @@ import retrofit2.Response
  *   si salió bien, se actualiza Room. Así no se duplican ni se pierden datos.
  */
 class SedeRepository(
-    private val api: ApiService = RetrofitClient.apiService,
-    private val dao: SedeDao = RinconSurApp.database.sedeDao()
+    private val api: SedeApiService = RetrofitClient.sedeApiService,
+    private val dao: SedeDao = RinconSurApp.database.sedeDao(),
+    private val probadorApi: ProbadorApiService = RetrofitClient.probadorApiService
 ) {
 
     val sedes: Flow<List<Sede>> = dao.getAll()
@@ -53,5 +55,5 @@ class SedeRepository(
 
     /** Probadores de una sede (se consulta al servidor). */
     suspend fun probadoresDeSede(sedeId: Int): Response<List<Probador>> =
-        api.listarProbadoresPorSede(sedeId)
+        probadorApi.listarProbadoresPorSede(sedeId)
 }

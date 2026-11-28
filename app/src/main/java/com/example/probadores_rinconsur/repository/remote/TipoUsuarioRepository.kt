@@ -1,9 +1,9 @@
-package com.example.probadores_rinconsur.repository
+package com.example.probadores_rinconsur.repository.remote
 
 import com.example.probadores_rinconsur.repository.data.TipoUsuarioDao
 import com.example.probadores_rinconsur.repository.models.TipoUsuario
-import com.example.probadores_rinconsur.repository.remote.ApiService
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.TipoUsuarioApiService
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
 import com.example.probadores_rinconsur.RinconSurApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +11,7 @@ import retrofit2.Response
 
 /** Tipos de usuario: MySQL por Retrofit + copia local en Room (misma idea que SedeRepository). */
 class TipoUsuarioRepository(
-    private val api: ApiService = RetrofitClient.apiService,
+    private val api: TipoUsuarioApiService = RetrofitClient.tipoUsuarioApiService,
     private val dao: TipoUsuarioDao = RinconSurApp.database.tipoUsuarioDao()
 ) {
 

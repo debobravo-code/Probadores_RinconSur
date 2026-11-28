@@ -2,14 +2,14 @@ package com.example.probadores_rinconsur.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.ProbadorRepository
-import com.example.probadores_rinconsur.repository.ReporteRepository
-import com.example.probadores_rinconsur.repository.SedeRepository
+import com.example.probadores_rinconsur.repository.remote.ProbadorRepository
+import com.example.probadores_rinconsur.repository.remote.ReporteRepository
+import com.example.probadores_rinconsur.repository.remote.SedeRepository
 import com.example.probadores_rinconsur.repository.models.Probador
 import com.example.probadores_rinconsur.repository.models.ReportePrenda
 import com.example.probadores_rinconsur.repository.models.Sede
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
-import com.example.probadores_rinconsur.repository.remote.dto.ReportePrendaRequest
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.dto.ReportePrendaRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

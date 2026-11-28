@@ -2,7 +2,7 @@ package com.example.probadores_rinconsur.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.probadores_rinconsur.repository.TipoUsuarioRepository
+import com.example.probadores_rinconsur.repository.remote.TipoUsuarioRepository
 import com.example.probadores_rinconsur.repository.models.TipoUsuario
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow

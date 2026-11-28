@@ -1,10 +1,11 @@
-package com.example.probadores_rinconsur.repository
+package com.example.probadores_rinconsur.repository.remote
 
 import com.example.probadores_rinconsur.repository.data.ReporteDao
 import com.example.probadores_rinconsur.repository.models.ReportePrenda
-import com.example.probadores_rinconsur.repository.remote.ApiService
-import com.example.probadores_rinconsur.repository.remote.RetrofitClient
-import com.example.probadores_rinconsur.repository.remote.dto.ReportePrendaRequest
+import com.example.probadores_rinconsur.Retrofit.ReporteApiService
+import com.example.probadores_rinconsur.Retrofit.RetrofitClient
+import com.example.probadores_rinconsur.Retrofit.FotoApiService
+import com.example.probadores_rinconsur.Retrofit.dto.ReportePrendaRequest
 import com.example.probadores_rinconsur.RinconSurApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -16,8 +17,9 @@ import java.io.File
 
 /** Reportes de prenda olvidada: MySQL por Retrofit + copia local en Room. */
 class ReporteRepository(
-    private val api: ApiService = RetrofitClient.apiService,
-    private val dao: ReporteDao = RinconSurApp.database.reporteDao()
+    private val api: ReporteApiService = RetrofitClient.reporteApiService,
+    private val dao: ReporteDao = RinconSurApp.database.reporteDao(),
+    private val fotoApi: FotoApiService = RetrofitClient.fotoApiService
 ) {
 
     val reportes: Flow<List<ReportePrenda>> = dao.getAll()
@@ -61,7 +63,7 @@ class ReporteRepository(
         val cuerpo = archivo.asRequestBody("image/jpeg".toMediaType())
         val parte = MultipartBody.Part.createFormData("archivo", archivo.name, cuerpo)
 
-        val respuesta = api.subirFoto(parte)
+        val respuesta = fotoApi.subirFoto(parte)
         return if (respuesta.isSuccessful) respuesta.body()?.get("fotoUri") else null
     }
 
